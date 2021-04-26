@@ -3,10 +3,12 @@ import keras
 from matplotlib import pyplot as plt
 import numpy as np
 import gzip
+import pandas as pd
 from keras.layers import Input,Conv2D,MaxPooling2D,UpSampling2D
 from keras.models import Model
 from keras.optimizers import RMSprop
 import tensorflow as tf
+import seaborn as sns
 # configuring tensorflow (not sure what this does but it makes it work), configuring the GPU
 config = tf.compat.v1.ConfigProto(gpu_options = 
                          tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.8)
@@ -20,8 +22,9 @@ tf.compat.v1.keras.backend.set_session(session)
 tf.test.is_built_with_cuda()
 
 # loading the dataset
-(train_images, train_labels), (test_images, train_labels) = keras.datasets.mnist.load_data()
-
+(train_images, train_labels), (test_images, test_labels) = keras.datasets.mnist.load_data()
+print('ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ')
+print(test_labels.shape)
 # Plotting some images from the dataset 
 #plt.figure(figsize=[5,5])
 # Display the first image in training data
@@ -73,11 +76,11 @@ def autoencoder(input_img):
     decoded = Conv2D(1, (3, 3), activation='sigmoid', padding='same')(up2) # 28 x 28 x 1
     return decoded
 
+
 # now we compile
 autoencoder = Model(input_img, autoencoder(input_img))
+print(autoencoder.summary())
 autoencoder.compile(loss='binary_crossentropy', optimizer = 'adam')
-
-## Defining the VAE bit, making this a class for some reason
 
 
 # Fitting the model to the training data
@@ -113,8 +116,34 @@ for i in range(1, n + 1):
     plt.imshow(prediction[i].reshape(28,28))
     plt.gray()
     ax.get_xaxis().set_visible(False)
-    ax.get_yaxis().set_visible(False)     
-plt.show()
+    ax.get_yaxis().set_visible(False)   
+
+print('afterplot')
+dr_model = keras.Model(inputs=autoencoder.get_layer('input_1').input, 
+                                         outputs=autoencoder.get_layer('encoded').output)
+dr_model.summary()
+
+x = []
+y = []
+z = []
+print(test_images.shape)
+for i in range(10):
+    print(i)
+    z.append(test_labels[i])
+    op = autoencoder.predict(np.array([test_images[i]]))
+    x.append(op[0][0])
+    y.append(op[0][1])
+ 
+df = pd.DataFrame()
+df['x'] = x
+df['y'] = y
+df['z'] = ["digit-"+str(k) for k in z]
+
+print(df.dtypes)
+#plt.figure(figsize=(8, 6))
+#sns.scatterplot(x='x', y='y', data=df)
+#plt.show()
+#print('FIN')
 
 #for i in range(1, n+1):
 #    # display reconstruction learning
