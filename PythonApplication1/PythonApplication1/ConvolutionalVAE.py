@@ -20,10 +20,8 @@ origin_dim = 28 * 28
 batch_size = 128
 intermediate_dim = 64
 latent_dim = 2 
-encoder_inputs = keras.Input(shape=(origin_dim,))
-h = layers.Dense(intermediate_dim, activation='relu')(encoder_inputs)
-z_mean = layers.Dense(latent_dim, name="z_mean")(h)
-z_log_sigma = layers.Dense(latent_dim, name="z_log_sigma")(h)
+#encoder_inputs = keras.Input(shape=(origin_dim,))
+
 # Make a sampling layer, this maps the MNIST digit to latent-space triplet (z_mean, z_log_var, z), this is how the bottleneck is displayed. 
 from keras import backend as K
 def sampling(args):
@@ -37,39 +35,45 @@ def sampling(args):
 
 ## Make the encoder, input > cov2D > flatten > dense (pretty sure this is doing nothing right now)
 # convolution layers
-#x = layers.Conv2D(32, 3, activation="relu", strides=2, padding="same")(encoder_inputs)
-#x = layers.MaxPooling2D((2, 2), padding='same')(x)
-#x = layers.Conv2D(8, (3, 3), activation='relu', padding='same')(x)
-#x = layers.MaxPooling2D((2, 2), padding='same')(x)
-#x = layers.Conv2D(8, (3, 3), activation='relu', padding='same')(x)
-#encoded = layers.MaxPooling2D((2, 2), padding='same')(x)
+encoder_input = keras.Input(shape=(28, 28, 1))
+x = layers.Conv2D(32, 3, activation="relu", strides=2, padding="same")(encoder_input)
+x = layers.MaxPooling2D((2, 2), padding='same')(x)
+x = layers.Conv2D(8, (3, 3), activation='relu', padding='same')(x)
+x = layers.MaxPooling2D((2, 2), padding='same')(x)
+encoded = layers.Conv2D(8, (3, 3), activation='relu', padding='same', name = 'encoded')(x)
+############## This might be deleted below
+h = layers.Dense(intermediate_dim, activation='relu')(x)
+z_mean = layers.Dense(latent_dim, name="z_mean")(h)
+z_log_sigma = layers.Dense(latent_dim, name="z_log_sigma")(h)
 ## save shape before flattening for decoder
-##shape_before_flattening = keras.int_shape(x)
+from keras import backend
+shape_before_flattening = keras.backend.int_shape(x)
+##############
 ## flatten and dense
-#x = layers.Flatten()(x)
-#x = layers.Dense(16, activation="relu")(x)
-# outputs, as this is variational you have two outputs, the mean and the sigma of the latent dimension, so it takes a sample from this distribtion to run through back propagation
-# as you cant back propagation from a sample distribution epsilon is added to z to allow it to be run through the decoder. This is what the sampling funciton does. (WHY RUN THROUGH LAMBDA)
+x = layers.Flatten()(encoded)
+x = layers.Dense(16, activation="relu")(x)
+# outputs, as this is variational you have two outputs, the mean and the sigma of the latent dimension, so it takes a sample from this distribtion to run through back propagation. As you cant back propagation from a sample distribution epsilon is added to z to allow it to be run through the decoder. This is what the sampling funciton does. (WHY RUN THROUGH LAMBDA)
 z = layers.Lambda(sampling)([z_mean, z_log_sigma])
 
 # initiating the encoder, it ouputs the latent dim dimensions
-encoder = keras.Model(encoder_inputs, [z_mean, z_log_sigma, z], name="encoder")
+encoder = keras.Model(encoder_input, [z_mean, z_log_sigma, z], name="encoder")
 encoder.summary()
 
+
 ### Make the decoder, takes the latent
-latent_inputs = keras.Input(shape=(latent_dim), name = 'z_sampling')
-#x = layers.Dense(7 * 7 * 64, activation="relu")(latent_inputs)
-#x = layers.Reshape((7, 7, 64))(x)
-#x = layers.Conv2DTranspose(64, 3, activation="relu", strides=2, padding="same")(x)
-#x = layers.Conv2DTranspose(32, 3, activation="relu", strides=2, padding="same")(x)
-x = layers.Dense(intermediate_dim, activation='relu')(latent_inputs)
-decoder_outputs =  layers.Dense(origin_dim, activation='sigmoid')(x)
-decoder = keras.Model(latent_inputs, decoder_outputs, name="decoder")
+decoder_inputs = keras.Input(shape=(16,))
+x = layers.Dense(7 * 7 * 64, activation="relu")(decoder_inputs)
+x = layers.Reshape((7, 7, 64))(x)
+x = layers.Conv2DTranspose(64, 3, activation="relu", strides=2, padding="same")(x)
+x = layers.Conv2DTranspose(32, 3, activation="relu", strides=2, padding="same")(x)
+#x = layers.Dense(intermediate_dim, activation='relu')(latent_inputs)
+decoder_outputs = layers.Conv2DTranspose(1, (3, 3), activation='sigmoid', padding='same')(x) # 28 x 28 x 1
+decoder = keras.Model(decoder_inputs, decoder_outputs, name="decoder")
 decoder.summary()
 
 # instantiate the VAE model (simplified)
-outputs = decoder(encoder(encoder_inputs)[2])
-vae = keras.Model(encoder_inputs, outputs, name='vae')
+outputs = decoder(encoder(encoder_input)[2])
+vae = keras.Model(encoder_input, outputs, name='vae')
 
 #######################################################################################
 ## Define the VAE as a model with custom train_step
@@ -117,7 +121,7 @@ vae = keras.Model(encoder_inputs, outputs, name='vae')
 #########################################################################################
 
 # use a custom loss function, this includes a KL divergence regularisation term which ensures that z is close to normal (0 mean, 1 sd)
-reconstruction_loss = keras.losses.binary_crossentropy(encoder_inputs, outputs)
+reconstruction_loss = keras.losses.binary_crossentropy(encoder_input, outputs)
 reconstruction_loss *= origin_dim
 kl_loss = 1 + z_log_sigma - K.square(z_mean) - K.exp(z_log_sigma)
 kl_loss = K.sum(kl_loss, axis=-1)
