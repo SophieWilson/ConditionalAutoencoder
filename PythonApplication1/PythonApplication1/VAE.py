@@ -2,7 +2,6 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
-
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
     try:
@@ -10,38 +9,53 @@ if gpus:
         for gpu in gpus:
             tf.config.experimental.set_memory_growth(gpu, True)
         logical_gpus = tf.config.experimental.list_logical_devices('GPU')
-        print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+        #print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
     except RuntimeError as e:
         # Memory growth must be set before GPUs have been initialized
         print(e)
 
-# Make a sampling layer
-class Sampling(layers.Layer):
+
+
+batch_size = 0
+latent_dim = 2 
+# Make a sampling layer, this maps the MNIST digit to latent-space triplet (z_mean, z_log_var, z), this is how the bottleneck is displayed. 
+from keras import backend as K
+def sampling(args):
     """Uses (z_mean, z_log_var) to sample z, the vector encoding a digit."""
+    z_mean, z_log_sigma = args
+    #batch = tf.shape(z_mean)[0]
+    #dim = tf.shape(z_mean)[1]
+    epsilon = K.random_normal(shape=(K.shape(z_mean)[0], latent_dim), mean = 0., stddev=0.1)
+    return z_mean + K.exp(z_log_sigma) * epsilon
 
-    def call(self, inputs):
-        z_mean, z_log_var = inputs
-        batch = tf.shape(z_mean)[0]
-        dim = tf.shape(z_mean)[1]
-        epsilon = tf.keras.backend.random_normal(shape=(batch, dim))
-        return z_mean + tf.exp(0.5 * z_log_var) * epsilon
 
-## Make the encoder
-latent_dim = 2
 
+
+## Make the encoder, input > cov2D > flatten > dense
 encoder_inputs = keras.Input(shape=(28, 28, 1))
+# convolution layers
 x = layers.Conv2D(32, 3, activation="relu", strides=2, padding="same")(encoder_inputs)
 x = layers.Conv2D(64, 3, activation="relu", strides=2, padding="same")(x)
+# save shape before flattening for decoder
+#shape_before_flattening = keras.int_shape(x)
+# flatten and dense
 x = layers.Flatten()(x)
 x = layers.Dense(16, activation="relu")(x)
+# outputs
 z_mean = layers.Dense(latent_dim, name="z_mean")(x)
-z_log_var = layers.Dense(latent_dim, name="z_log_var")(x)
-z = Sampling()([z_mean, z_log_var])
-encoder = keras.Model(encoder_inputs, [z_mean, z_log_var, z], name="encoder")
+z_log_sigma = layers.Dense(latent_dim, name="z_log_sigma")(x)
+z = layers.Lambda(sampling)([z_mean, z_log_sigma])
+
+# initiating the encoder, it ouputs the latent dim dimensions
+encoder = keras.Model(encoder_inputs, [z_mean, z_log_sigma, z], name="encoder")
 encoder.summary()
 
-### Make the decoder
 
+
+
+
+
+### Make the decoder, takes the latent
 latent_inputs = keras.Input(shape=(latent_dim,))
 x = layers.Dense(7 * 7 * 64, activation="relu")(latent_inputs)
 x = layers.Reshape((7, 7, 64))(x)
@@ -96,7 +110,6 @@ class VAE(keras.Model):
         }
 
 # Train the VAE
-
 (x_train, _), (x_test, _) = keras.datasets.mnist.load_data()
 mnist_digits = np.concatenate([x_train, x_test], axis=0)
 mnist_digits = np.expand_dims(mnist_digits, -1).astype("float32") / 255
@@ -142,9 +155,6 @@ def plot_latent_space(vae, n=30, figsize=15):
     plt.ylabel("z[1]")
     plt.imshow(figure, cmap="Greys_r")
     
-
-
-
 
 ## Display how the latent space clusters the digit classes
 
