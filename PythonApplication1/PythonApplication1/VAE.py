@@ -1,4 +1,4 @@
-#butmake it conditional
+#butmake it conditionaldfhdghfgjgfhkgfjhkgfhjk
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
