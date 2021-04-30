@@ -19,7 +19,7 @@ if gpus:
 
 epochs = 100
 origin_dim = 28 * 28
-batch_size = 128
+batch_size = 32
 #intermediate_dim = 64
 latent_dim = 2 
 
@@ -40,21 +40,36 @@ class Sampling(layers.Layer):
 
 latent_dim = 2
 
+
+
 encoder_inputs = keras.Input(shape=(28, 28, 1))
+#x = layers.Conv2D(16, (3, 3), activation='relu', padding='same')(encoder_inputs) #28 x 28 x 32 output
+#x = layers.MaxPooling2D(pool_size=(2, 2))(x) #14 x 14 x 32 output
+#x = layers.Conv2D(8, (3, 3), activation='relu', padding='same')(x) #14 x 14 x 64 output
+#x = layers.MaxPooling2D(pool_size=(2, 2))(x) #7 x 7 x 64 output
+#x = layers.Conv2D(8, (3, 3), activation='relu', padding='same', name="encoded")(x) #7 x 7 x 128 (small and thick) output (bottleneck)
+# This is where working thing starts! (below)
 x = layers.Conv2D(32, 3, activation="relu", strides=2, padding="same")(encoder_inputs)
 x = layers.Conv2D(64, 3, activation="relu", strides=2, padding="same")(x)
 x = layers.Flatten()(x)
 x = layers.Dense(16, activation="relu")(x)
-
 z_mean = layers.Dense(latent_dim, name="z_mean")(x)
 z_log_var = layers.Dense(latent_dim, name="z_log_var")(x)
 z = Sampling()([z_mean, z_log_var])
-
 encoder = keras.Model(encoder_inputs, [z_mean, z_log_var, z], name="encoder")
 encoder.summary()
 
 
+# Decoder
 latent_inputs = keras.Input(shape=(latent_dim,))
+#x = layers.Dense(7 * 7 * 64, activation="relu")(latent_inputs)
+#x = layers.Reshape((7, 7, 64))(x)
+#x = layers.Conv2D(8, (3, 3), activation='relu', padding='same')(x) #7 x 7 x 128
+#x = layers.UpSampling2D((2,2))(x) # 14 x 14 x 128
+#x = layers.Conv2D(16, (3, 3), activation='relu', padding='same')(x) # 14 x 14 x 64
+#x = layers.UpSampling2D((2,2))(x) # 28 x 28 x 64
+#decoder_outputs = layers.Conv2D(1, (3, 3), activation='sigmoid', padding='same')(x) # 28 x 28 x 1
+## Working decoder below
 x = layers.Dense(7 * 7 * 64, activation="relu")(latent_inputs)
 x = layers.Reshape((7, 7, 64))(x)
 x = layers.Conv2DTranspose(64, 3, activation="relu", strides=2, padding="same")(x)
@@ -158,9 +173,9 @@ def plot_latent_space(vae, n=30, figsize=15):
     plt.xlabel("z[0]")
     plt.ylabel("z[1]")
     plt.imshow(figure, cmap="Greys_r")
-    #plt.show()
+    plt.show()
 
-
+plot_latent_space(vae)
 
 # loss plot
 def lossplot(history):
@@ -174,9 +189,10 @@ def lossplot(history):
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.legend()
-    #plt.show()
+    plt.show()
 
 lossplot(history)
+
 #loss_values = history.history['accuracy']
 #epochs = range(1, len(loss_values)+1)
 #plt.plot(epochs, loss_values, label='Training Accuracy')
