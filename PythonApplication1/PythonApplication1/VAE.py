@@ -1,3 +1,4 @@
+#butmake it conditional
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
@@ -15,12 +16,15 @@ if gpus:
         print(e)
 
 
-epochs = 1
+epochs = 50
 origin_dim = 28 * 28
 batch_size = 128
 intermediate_dim = 64
 latent_dim = 2 
-
+encoder_inputs = keras.Input(shape=(origin_dim,))
+h = layers.Dense(intermediate_dim, activation='relu')(encoder_inputs)
+z_mean = layers.Dense(latent_dim, name="z_mean")(h)
+z_log_sigma = layers.Dense(latent_dim, name="z_log_sigma")(h)
 
 # Make a sampling layer, this maps the MNIST digit to latent-space triplet (z_mean, z_log_var, z), this is how the bottleneck is displayed. 
 from keras import backend as K
@@ -33,28 +37,20 @@ def sampling(args):
 
 ## Make the encoder
 # outputs, as this is variational you have two outputs, the mean and the sigma of the latent dimension, so it takes a sample from this distribtion to run through back propagation. As you cant back propagation from a sample distribution epsilon is added to z to allow it to be run through the decoder. This is what the sampling funciton does. (WHY RUN THROUGH LAMBDA)
-
-encoder_inputs = keras.Input(shape=(origin_dim,))
-h = layers.Dense(64, activation='relu')(encoder_inputs)
-z_mean = layers.Dense(latent_dim, name="z_mean")(h)
-z_log_sigma = layers.Dense(latent_dim, name="z_log_sigma")(h)
 z = layers.Lambda(sampling)([z_mean, z_log_sigma])
 
 # initiating the encoder, it ouputs the latent dim dimensions
 encoder = keras.Model(encoder_inputs, [z_mean, z_log_sigma, z], name="encoder")
 encoder.summary()
 
-### Make the decoder, takes the latent input to output the image
+### Make the decoder, takes the latent
 latent_inputs = keras.Input(shape=(latent_dim), name = 'z_sampling')
 x = layers.Dense(intermediate_dim, activation='relu')(latent_inputs)
 decoder_outputs =  layers.Dense(origin_dim, activation='sigmoid')(x)
 decoder = keras.Model(latent_inputs, decoder_outputs, name="decoder")
 decoder.summary()
 
-
 # instantiate the VAE model (simplified)
-#print(encoder(encoder_inputs))
-#decoder takes only z input from encoder
 outputs = decoder(encoder(encoder_inputs)[2])
 vae = keras.Model(encoder_inputs, outputs, name='vae')
 
@@ -62,21 +58,12 @@ vae = keras.Model(encoder_inputs, outputs, name='vae')
 # use a custom loss function, this includes a KL divergence regularisation term which ensures that z is close to normal (0 mean, 1 sd)
 reconstruction_loss = keras.losses.binary_crossentropy(encoder_inputs, outputs)
 reconstruction_loss *= origin_dim
-
 kl_loss = 1 + z_log_sigma - K.square(z_mean) - K.exp(z_log_sigma)
 kl_loss = K.sum(kl_loss, axis=-1)
 kl_loss *= -0.5
 vae_loss = K.mean(reconstruction_loss + kl_loss)
-# does this just show up as loss?
 vae.add_loss(vae_loss)
-vae.compile(optimizer='adam')
-# can add more metrics below with this (i'll try it out later)
-#model.metrics_tensors.append(kl_loss)
-#model.metrics_names.append("kl_loss")
-
-#model.metrics_tensors.append(reconstruction_loss)
-#model.metrics_names.append("mse_loss")
-
+vae.compile(optimizer=keras.optimizers.Adam())
 
 # train VAE on MNIST
 (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
@@ -86,12 +73,10 @@ x_train = x_train.reshape((len(x_train), np.prod(x_train.shape[1:])))
 x_test = x_test.reshape((len(x_test), np.prod(x_test.shape[1:])))
 
 # fit the data
-history = vae.fit(x_train, x_train, epochs=epochs, batch_size=batch_size, validation_data = (x_test, x_test))
-print(history.history.keys())
+vae.fit(x_train, x_train, epochs=epochs, batch_size=batch_size, validation_data = (x_test, x_test))
 
-## Plots
-
-# Display how the latent space clusters the digit classesimport matplotlib.pyplot as plt
+# Display how the latent space clusters the digit classes
+import matplotlib.pyplot as plt
 def plot_clusters(encoder, data, labels, batch_size):
     x_test_encoded, _, _ = encoder.predict(x_test, batch_size=batch_size)
     plt.figure(figsize=(6, 6))
@@ -155,34 +140,7 @@ def reconstruction_plot(x_test, vae, n=10):
         plt.gray()
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)   
-    plt.show()
+    #plt.show()
 
 reconstruction_plot(x_test, vae)
-
-# loss plot
-def lossplot(history):
-    loss_values = history.history['loss']
-    val_loss = history.history['val_loss']
-    #reconstruction_loss = history.history['reconstruction_loss']
-    #kl_loss = history.history['kl_loss']
-    epochs = range(1, len(loss_values)+1)
-    plt.plot(epochs, loss_values, label='Training Loss')
-    plt.plot(epochs, val_loss, label = 'Val_loss')
-    #plt.plot(epochs, kl_loss, label='KL Loss')
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.show()
-
-lossplot(history)
-
-loss_values = history.history['accuracy']
-val_acc = history.history['val_accuracy']
-epochs = range(1, len(loss_values)+1)
-plt.plot(epochs, loss_values, label='Training Accuracy')
-plt.plot(epochs, val_acc, label ='val accuracy')
-plt.xlabel('Epochs')
-plt.ylabel('Accuracy')
-plt.legend()
-plt.show()
 plt.show()
