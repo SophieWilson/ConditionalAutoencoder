@@ -21,10 +21,8 @@ origin_dim = 28 * 28
 batch_size = 128
 intermediate_dim = 64
 latent_dim = 2 
-encoder_inputs = keras.Input(shape=(origin_dim,))
-h = layers.Dense(intermediate_dim, activation='relu')(encoder_inputs)
-z_mean = layers.Dense(latent_dim, name="z_mean")(h)
-z_log_sigma = layers.Dense(latent_dim, name="z_log_sigma")(h)
+
+
 
 # Make a sampling layer, this maps the MNIST digit to latent-space triplet (z_mean, z_log_var, z), this is how the bottleneck is displayed. 
 from keras import backend as K
@@ -37,8 +35,12 @@ def sampling(args):
 
 ## Make the encoder
 # outputs, as this is variational you have two outputs, the mean and the sigma of the latent dimension, so it takes a sample from this distribtion to run through back propagation. As you cant back propagation from a sample distribution epsilon is added to z to allow it to be run through the decoder. This is what the sampling funciton does. (WHY RUN THROUGH LAMBDA)
-z = layers.Lambda(sampling)([z_mean, z_log_sigma])
 
+encoder_inputs = keras.Input(shape=(origin_dim,))
+h = layers.Dense(intermediate_dim, activation='relu')(encoder_inputs)
+z_mean = layers.Dense(latent_dim, name="z_mean")(h)
+z_log_sigma = layers.Dense(latent_dim, name="z_log_sigma")(h)
+z = layers.Lambda(sampling)([z_mean, z_log_sigma])
 # initiating the encoder, it ouputs the latent dim dimensions
 encoder = keras.Model(encoder_inputs, [z_mean, z_log_sigma, z], name="encoder")
 encoder.summary()
