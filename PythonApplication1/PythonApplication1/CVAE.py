@@ -28,7 +28,7 @@ plot_labels_test = y_test
 plot_labels_train = y_train
 y_train = to_categorical(y_train) # tuple 10,000 * 10
 y_test = to_categorical(y_test) # tuple 10,000 * 10
-epochs = 5
+epochs = 100
 origin_dim = 28 * 28 # 78
 batch_size = 128
 intermediate_dim = 64
@@ -54,6 +54,8 @@ encoder_inputs = concatenate([x, label])
 ## Make the encoder
 # outputs, as this is variational you have two outputs, the mean and the sigma of the latent dimension, so it takes a sample from this distribtion to run through back propagation. As you cant back propagation from a sample distribution epsilon is added to z to allow it to be run through the decoder. This is what the sampling funciton does.
 h = layers.Dense(intermediate_dim, activation='relu')(encoder_inputs)
+h = layers.Dense(intermediate_dim, activation='relu')(h)
+h = layers.Dense(intermediate_dim, activation='relu')(h)
 z_mean = layers.Dense(latent_dim, name="z_mean")(h)
 z_log_sigma = layers.Dense(latent_dim, name="z_log_sigma")(h)
 
@@ -67,6 +69,8 @@ encoder.summary()
 # the only input to decoder is z_label
 latent_inputs = keras.Input(shape=(12), name = 'z_sampling')
 dec_x = layers.Dense(intermediate_dim, activation='relu')(latent_inputs)
+dec_x = layers.Dense(intermediate_dim, activation='relu')(dec_x)
+dec_x = layers.Dense(intermediate_dim, activation='relu')(dec_x)
 decoder_outputs =  layers.Dense(origin_dim, activation='sigmoid')(dec_x)
 decoder = keras.Model(latent_inputs, decoder_outputs, name="decoder")
 decoder.summary()
@@ -94,12 +98,18 @@ cvae.compile(optimizer='adam',)
 # can add more metrics below with this (i'll try it out later)
 #model.metrics_tensors.append(kl_loss)
 #model.metrics_names.append("kl_loss")
-
 #model.metrics_tensors.append(reconstruction_loss)
 #model.metrics_names.append("mse_loss")
 
+# Tensorboard
+from keras.callbacks import TensorBoard
+import datetime
+log_dir = "C:/Users/Mischa/sophie/logs" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+tensorboard_callback = TensorBoard(log_dir=log_dir)
+
+
 # fit the data to MNIST
-history = cvae.fit([x_train, y_train], x_train, epochs=epochs, batch_size=batch_size, validation_data = ([x_test, y_test], x_test), verbose = 2)
+history = cvae.fit([x_train, y_train], x_train, epochs=epochs, batch_size=batch_size, validation_data = ([x_test, y_test], x_test), verbose = 2, callbacks=[tensorboard_callback])
 print(history.history.keys())
 ## Plots
 import matplotlib.pyplot as plt
@@ -113,7 +123,7 @@ def plot_clusters(encoder, data, labels, batch_size):
     plt.ylabel("z[1]")
     plt.show()
 
-plot_clusters(encoder, [x_test, y_test], plot_labels_test, batch_size)
+#plot_clusters(encoder, [x_test, y_test], plot_labels_test, batch_size)
 
 # Display a 2D grid of the digits
 def digit_grid(decoder, n=30, figsize=15):
@@ -169,7 +179,7 @@ def reconstruction_plot(data, vae, n=10):
         ax.get_yaxis().set_visible(False)   
     plt.show()
 
-reconstruction_plot([x_test, y_test], cvae)
+#reconstruction_plot([x_test, y_test], cvae)
 
 # loss plot
 def lossplot(history):
@@ -186,5 +196,5 @@ def lossplot(history):
     plt.legend()
     plt.show()
 
-lossplot(history)
+#lossplot(history)
 
