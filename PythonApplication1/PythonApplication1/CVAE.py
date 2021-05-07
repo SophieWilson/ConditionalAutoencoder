@@ -17,6 +17,7 @@ if gpus:
 
 from keras.utils import to_categorical
 from keras.layers.merge import concatenate
+import matplotlib.pyplot as plt
 # load in MNIST
 (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
 x_train = x_train.astype('float32') / 255
@@ -28,7 +29,9 @@ plot_labels_test = y_test
 plot_labels_train = y_train
 y_train = to_categorical(y_train) # tuple 10,000 * 10
 y_test = to_categorical(y_test) # tuple 10,000 * 10
-epochs = 101
+
+
+epochs = 100
 origin_dim = 28 * 28 # 78
 batch_size = 128
 intermediate_dim = 64
@@ -36,7 +39,7 @@ latent_dim = 2
 n_y = y_train.shape[1] # 10
 n_x = x_train.shape[1] # 784
 print(n_y, n_x)
-n_z = 50
+n_z = 2
 
 # Make a sampling layer, this maps the MNIST digit to latent-space triplet (z_mean, z_log_var, z), this is how the bottleneck is displayed. 
 from keras import backend as K
@@ -116,8 +119,10 @@ es_callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=6)
 # fit the data to MNIST
 history = cvae.fit([x_train, y_train], x_train, epochs=epochs, batch_size=batch_size, validation_data = ([x_test, y_test], x_test), verbose = 2, callbacks=[tensorboard_callback, es_callback])
 print(history.history.keys())
+
+
 ## Plots
-import matplotlib.pyplot as plt
+
 # Display how the latent space clusters the digit classesimport matplotlib.pyplot as plt
 def plot_clusters(encoder, data, labels, batch_size):
     x_test_encoded, _, _ = encoder.predict([x_test, y_test], batch_size=batch_size)
@@ -128,7 +133,7 @@ def plot_clusters(encoder, data, labels, batch_size):
     plt.ylabel("z[1]")
     plt.show()
 
-plot_clusters(encoder, [x_test, y_test], plot_labels_test, batch_size)
+#plot_clusters(encoder, [x_test, y_test], plot_labels_test, batch_size)
 
 # Display a 2D grid of the digits
 def digit_grid(decoder, n=30, figsize=15):
@@ -165,7 +170,7 @@ def digit_grid(decoder, n=30, figsize=15):
 #digit_grid(decoder)
 
 # Plotting reconstruction vs actual
-def reconstruction_plot(data, vae, n=10):
+def reconstruction_plot(data, vae, n=9):
     prediction = vae.predict(data)
     plt.figure(figsize=(20, 4))
     for i in range(1, n + 1):
@@ -184,7 +189,7 @@ def reconstruction_plot(data, vae, n=10):
         ax.get_yaxis().set_visible(False)   
     plt.show()
 
-reconstruction_plot([x_test, y_test], cvae)
+#reconstruction_plot([x_test, y_test], cvae)
 
 # loss plot
 def lossplot(history):
@@ -201,5 +206,148 @@ def lossplot(history):
     plt.legend()
     plt.show()
 
-lossplot(history)
+#lossplot(history)
 
+# Reconstructing specific digits
+
+def construct_numvec(digit, z = None):
+    out = np.zeros((1, n_z + n_y))
+    out[:, digit + n_z] = 1.
+    if z is None:
+        return(out)
+    else:
+        for i in range(len(z)):
+            out[:,i] = z[i]
+        return(out)
+    
+# Plotting one label
+sample_3 = construct_numvec(3)
+print(sample_3)
+
+#plt.figure(figsize=(3, 3))
+#plt.imshow(decoder.predict(sample_3).reshape(28,28), cmap = plt.cm.gray)
+#plt.show()
+
+# Plotting latent space with respect to specific numbers
+dig = 1
+sides = 8
+max_z = 1.5
+
+img_it = 0
+plt.figure(figsize=(10,10))
+plt.title('single digit reconstructed from latent space')
+for i in range(0, sides):
+    z1 = (((i / (sides-1)) * max_z)*2) - max_z
+    for j in range(0, sides):
+        z2 = (((j / (sides-1)) * max_z)*2) - max_z
+        z_ = [z1, z2]
+        vec = construct_numvec(dig, z_)
+        decoded = decoder.predict(vec)
+        ax = plt.subplot(sides, sides, 1 + img_it)
+        
+        img_it +=1
+        plt.imshow(decoded.reshape(28, 28), cmap = plt.cm.gray)
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)  
+#plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=.5)
+#plt.show()
+
+# Plotting one axis change
+dig = 1
+sides = 10
+max_z = 1.5
+# Plotting y axis change
+img_it = 0
+plt.figure(figsize = (2, 20))
+plt.title('Varying the y axis in latent space')
+for i in range(0, sides):
+    z1 = (((i / (sides-1)) * max_z)*2) - max_z
+    z_ = [z1, 0]
+    vec = construct_numvec(dig, z_)
+    decoded = decoder.predict(vec)
+    ax = plt.subplot(10, 1, 1 + img_it)
+    img_it +=1
+    plt.imshow(decoded.reshape(28, 28), cmap = plt.cm.gray)
+    
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)  
+#plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=.5)
+#plt.show()
+# Plotting x axis change
+
+dig = 1
+sides = 10
+max_z = 1.5
+# Plotting y axis change
+img_it = 0
+plt.figure(figsize = (2, 20))
+plt.title('Varying X axis in latent space')
+for i in range(0, sides):
+    z1 = (((i / (sides-1)) * max_z)*2) - max_z
+    z_ = [0, z1]
+    vec = construct_numvec(dig, z_)
+    decoded = decoder.predict(vec)
+    ax = plt.subplot(10, 1, 1 + img_it)
+    img_it +=1
+    plt.imshow(decoded.reshape(28, 28), cmap = plt.cm.gray)
+    
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)  
+#plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=.5)
+#plt.show()
+
+
+# Plotting digits as wrong labels 
+
+# Getting 10 samples of mnist
+first_test = x_train[0:10]
+print(len(first_test))
+
+# setting fake label
+#label_4 = np.tile(construct_numvec(4), (1, 10))
+four = np.repeat(4, 10)
+label_four = to_categorical(four, num_classes=10)
+#help = cvae.predict(first_test, label_4)
+# Plotting test images
+plt.figure(figsize=(20, 4))
+for i in range(1,  10):
+    # Display original
+    ax = plt.subplot(2, 10, i)
+    plt.imshow(first_test[i].reshape(28, 28))
+    plt.gray()
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+plt.show()
+
+reconstruction_plot([first_test, label_four], cvae)
+###############################################################
+
+
+
+
+
+
+#for i in range(n_z+n_y):
+#	tmp = np.zeros((1,n_z+n_y))
+#	tmp[0,i] = 1
+#	generated = decoder.predict(tmp)
+#	file_name = './img' + str(i) + '.jpg'
+#	print(generated)
+#	imsave(file_name, generated.reshape((28,28)))
+#	sleep(0.5)
+
+# this loop prints a transition through the number line
+
+#pic_num = 0
+#variations = 30 # rate of change; higher is slower
+#for j in range(n_z, n_z + n_y - 1):
+#	for k in range(variations):
+#		v = np.zeros((1, n_z+n_y))
+#		v[0, j] = 1 - (k/variations)
+#		v[0, j+1] = (k/variations)
+#		generated = decoder.predict(v)
+#		pic_idx = j - n_z + (k/variations)
+#		file_name = './transition_50/img{0:.3f}.jpg'.format(pic_idx)
+#		imsave(file_name, generated.reshape((28,28)))
+#		pic_num += 1
+		
