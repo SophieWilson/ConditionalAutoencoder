@@ -22,8 +22,8 @@ import matplotlib.pyplot as plt
 (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
 x_train = x_train.astype('float32') / 255
 x_test = x_test.astype('float32') / 255
-x_train = x_train.reshape((len(x_train), np.prod(x_train.shape[1:])))
-x_test = x_test.reshape((len(x_test), np.prod(x_test.shape[1:]))) # 10 * 784 * 60,000
+x_train = x_train.reshape((len(x_train), np.prod(x_train.shape[1:]))) # 10 * 784 * 60,000
+x_test = x_test.reshape((len(x_test), np.prod(x_test.shape[1:]))) # 10 * 784 * 10,000
 # convert y to onehot
 plot_labels_test = y_test
 plot_labels_train = y_train
@@ -31,7 +31,7 @@ y_train = to_categorical(y_train) # tuple 10,000 * 10
 y_test = to_categorical(y_test) # tuple 10,000 * 10
 
 
-epochs = 100
+epochs = 5
 origin_dim = 28 * 28 # 78
 batch_size = 128
 intermediate_dim = 64
@@ -122,204 +122,30 @@ print(history.history.keys())
 
 
 ## Plots
+from CVAEplots import plot_clusters
+plot_clusters(encoder, x_test, y_test, plot_labels_test, batch_size)
 
-# Display how the latent space clusters the digit classesimport matplotlib.pyplot as plt
-def plot_clusters(encoder, data, labels, batch_size):
-    x_test_encoded, _, _ = encoder.predict([x_test, y_test], batch_size=batch_size)
-    plt.figure(figsize=(6, 6))
-    plt.scatter(x_test_encoded[:, 0], x_test_encoded[:, 1], c=labels)
-    plt.colorbar()
-    plt.xlabel("z[0]")
-    plt.ylabel("z[1]")
-    plt.show()
+from CVAEplots import reconstruction_plot
+reconstruction_plot(x_test, y_test, cvae)
 
-#plot_clusters(encoder, [x_test, y_test], plot_labels_test, batch_size)
+from CVAEplots import lossplot
+lossplot(history)
 
-# Display a 2D grid of the digits
-def digit_grid(decoder, n=30, figsize=15):
-    n = 15  # figure with 15x15 digits
-    scale = 1.0
-    digit_size = 28 # size of digits
-    figure = np.zeros((digit_size * n, digit_size * n))
-    # We will sample n points within [-15, 15] standard deviations
-    #linearly spaced coordinates corresponding to the 2D plot of digit classes in the latent space
-    grid_x = np.linspace(-scale, scale, n)
-    grid_y = np.linspace(-scale, scale, n)[::-1]
+from CVAEplots import plot_latent_space
+plot_latent_space(1, 1.5, 8, decoder)
 
-    for i, yi in enumerate(grid_x): 
-        for j, xi in enumerate(grid_y): # cycling through grid spots
-            z_sample = np.array([[xi, yi]]) # sampling from space
-            x_decoded = decoder.predict(z_sample) # taking prediction from that latent space
-            digit = x_decoded[0].reshape(digit_size, digit_size) # reshaping to plot
-            figure[i * digit_size: (i + 1) * digit_size,
-                   j * digit_size: (j + 1) * digit_size] = digit
-    
-    plt.figure(figsize=(figsize, figsize))
-    start_range = digit_size // 2
-    end_range = n * digit_size + start_range
-    pixel_range = np.arange(start_range, end_range, digit_size)
-    sample_range_x = np.round(grid_x, 1)
-    sample_range_y = np.round(grid_y, 1)
-    plt.xticks(pixel_range, sample_range_x)
-    plt.yticks(pixel_range, sample_range_y)
-    plt.xlabel("z[0]")
-    plt.ylabel("z[1]")
-    plt.imshow(figure, cmap="Greys_r")
-    #plt.show()
+from CVAEplots import latent_space_traversal
+latent_space_traversal(10, 1.5, decoder)
 
-#digit_grid(decoder)
-
-# Plotting reconstruction vs actual
-def reconstruction_plot(data, vae, n=9):
-    prediction = vae.predict(data)
-    plt.figure(figsize=(20, 4))
-    for i in range(1, n + 1):
-        # Display original
-        ax = plt.subplot(2, n, i)
-        plt.imshow(x_test[i].reshape(28, 28))
-        plt.gray()
-        ax.get_xaxis().set_visible(False)
-        ax.get_yaxis().set_visible(False)
-
-        # display reconstruction
-        ax = plt.subplot(2, n, i + n)
-        plt.imshow(prediction[i].reshape(28,28))
-        plt.gray()
-        ax.get_xaxis().set_visible(False)
-        ax.get_yaxis().set_visible(False)   
-    plt.show()
-
-#reconstruction_plot([x_test, y_test], cvae)
-
-# loss plot
-def lossplot(history):
-    loss_values = history.history['loss']
-    val_loss = history.history['val_loss']
-    #reconstruction_loss = history.history['reconstruction_loss']
-    #kl_loss = history.history['kl_loss']
-    epochs = range(1, len(loss_values)+1)
-    plt.plot(epochs, loss_values, label='Training Loss')
-    plt.plot(epochs, val_loss, label = 'Val_loss')
-    #plt.plot(epochs, kl_loss, label='KL Loss')
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.show()
-
-#lossplot(history)
-
-# Reconstructing specific digits
-
-def construct_numvec(digit, z = None):
-    out = np.zeros((1, n_z + n_y))
-    out[:, digit + n_z] = 1.
-    if z is None:
-        return(out)
-    else:
-        for i in range(len(z)):
-            out[:,i] = z[i]
-        return(out)
-    
-# Plotting one label
-sample_3 = construct_numvec(3)
-print(sample_3)
-
-#plt.figure(figsize=(3, 3))
-#plt.imshow(decoder.predict(sample_3).reshape(28,28), cmap = plt.cm.gray)
-#plt.show()
-
-# Plotting latent space with respect to specific numbers
-dig = 1
-sides = 8
-max_z = 1.5
-
-img_it = 0
-plt.figure(figsize=(10,10))
-plt.title('single digit reconstructed from latent space')
-for i in range(0, sides):
-    z1 = (((i / (sides-1)) * max_z)*2) - max_z
-    for j in range(0, sides):
-        z2 = (((j / (sides-1)) * max_z)*2) - max_z
-        z_ = [z1, z2]
-        vec = construct_numvec(dig, z_)
-        decoded = decoder.predict(vec)
-        ax = plt.subplot(sides, sides, 1 + img_it)
-        
-        img_it +=1
-        plt.imshow(decoded.reshape(28, 28), cmap = plt.cm.gray)
-        ax.get_xaxis().set_visible(False)
-        ax.get_yaxis().set_visible(False)  
-#plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=.5)
-#plt.show()
-
-# Plotting one axis change
-dig = 1
-sides = 10
-max_z = 1.5
-# Plotting y axis change
-img_it = 0
-plt.figure(figsize = (2, 20))
-plt.title('Varying the y axis in latent space')
-for i in range(0, sides):
-    z1 = (((i / (sides-1)) * max_z)*2) - max_z
-    z_ = [z1, 0]
-    vec = construct_numvec(dig, z_)
-    decoded = decoder.predict(vec)
-    ax = plt.subplot(10, 1, 1 + img_it)
-    img_it +=1
-    plt.imshow(decoded.reshape(28, 28), cmap = plt.cm.gray)
-    
-    ax.get_xaxis().set_visible(False)
-    ax.get_yaxis().set_visible(False)  
-#plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=.5)
-#plt.show()
-# Plotting x axis change
-
-dig = 1
-sides = 10
-max_z = 1.5
-# Plotting y axis change
-img_it = 0
-plt.figure(figsize = (2, 20))
-plt.title('Varying X axis in latent space')
-for i in range(0, sides):
-    z1 = (((i / (sides-1)) * max_z)*2) - max_z
-    z_ = [0, z1]
-    vec = construct_numvec(dig, z_)
-    decoded = decoder.predict(vec)
-    ax = plt.subplot(10, 1, 1 + img_it)
-    img_it +=1
-    plt.imshow(decoded.reshape(28, 28), cmap = plt.cm.gray)
-    
-    ax.get_xaxis().set_visible(False)
-    ax.get_yaxis().set_visible(False)  
-#plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=.5)
-#plt.show()
-
+from CVAEplots import plot_y_axis_change, plot_x_axis_change
+plot_y_axis_change(1, 10, 1.5, decoder)
+plot_x_axis_change(1, 10, 1.5, decoder)
 
 # Plotting digits as wrong labels 
-
-# Getting 10 samples of mnist
-first_test = x_train[0:10]
-print(len(first_test))
-
 # setting fake label
-#label_4 = np.tile(construct_numvec(4), (1, 10))
-four = np.repeat(4, 10)
-label_four = to_categorical(four, num_classes=10)
-#help = cvae.predict(first_test, label_4)
-# Plotting test images
-plt.figure(figsize=(20, 4))
-for i in range(1,  10):
-    # Display original
-    ax = plt.subplot(2, 10, i)
-    plt.imshow(first_test[i].reshape(28, 28))
-    plt.gray()
-    ax.get_xaxis().set_visible(False)
-    ax.get_yaxis().set_visible(False)
-plt.show()
-
-reconstruction_plot([first_test, label_four], cvae)
+label = np.repeat(7, 10000)
+label_fake = to_categorical(label, num_classes=10)
+reconstruction_plot(x_test, label_fake, cvae)
 ###############################################################
 
 
