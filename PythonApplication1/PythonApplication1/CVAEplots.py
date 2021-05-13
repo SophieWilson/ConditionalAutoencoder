@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
-
+import math
 ## Plots
 ## All of the plotting functions for CVAE and VAE models in one place as they're clogging up the actual script, example of how to call below each function ##
 # Functions in this script:
@@ -65,13 +65,14 @@ def reconstruction_plot(x_test, y_test, model, n=9):
     for i in range(1, n + 1):
         # Display original
         ax = plt.subplot(2, n, i)
-        plt.imshow(x_test[i].reshape(28, 28))
+        quard = int(math.sqrt(x_test.shape[1])) # sqrt of x dimension
+        plt.imshow(x_test[i].reshape(quard, quard))
         plt.gray()
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
         # Display reconstruction
         ax = plt.subplot(2, n, i + n)
-        plt.imshow(prediction[i].reshape(28,28))
+        plt.imshow(prediction[i].reshape(quard,quard))
         plt.gray()
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)   
