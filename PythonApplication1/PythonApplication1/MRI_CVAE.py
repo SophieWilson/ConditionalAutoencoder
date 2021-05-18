@@ -53,19 +53,23 @@ niis = []
 #'rp1', # gm mask
 #'rp2', # wm mask
 labels = []
-for i in range(50):
+for i in range(100):
     row = filepath_df.iloc[i]
     nii_path = row['wp0']
     nii = nib.load(nii_path)
     nii = nii.get_fdata()
-    nii = nii[:, 78:129, :] # was 78:129
-    print(nii.shape[1])
-    for j in range(nii.shape[1]):
-        niis.append((nii[:,i,:]))
-        labels.append(row['STUDYGROUP'])
+    nii = nii[:, 78:79, :] # was 78:129
+    labels.append(row['SEX_T0'])
+    niis.append(nii)
+    #for j in range(nii.shape[1]):  # To get only one layer remove this loop and take only one slice
+    #    niis.append((nii[:,j,:]))
+    #    labels.append(row['STUDYGROUP'])
+
+
+
 
 print(nii.shape) # 121, 51, 121
-nii[:,0,:].shape
+#nii[:,0,:].shape
 
 # Loading in the labels
 metadata = pd.read_csv('Z:/PRONIA_data/Tables/pronia_full_niftis.csv')
@@ -74,8 +78,15 @@ print(len(labels))
 # Preprocessing
 images = np.asarray(niis)
 print(images.shape)
+
+#from CVAEplots import plot_data
+#plot_data(images)
+
+images = images.reshape(-1, 121, 121, 1)
+#print(images.shape) # 510,121,121,1
+
+
 x_train,x_test,y_train,y_test = train_test_split(images, labels, test_size=0.2, random_state=13) # x_train 408, 121, 121
-print(y_test)
 x_train = x_train.astype('float32') / 255 # 408, 121, 121
 x_test = x_test.astype('float32') / 255 # 102, 121, 121
 
@@ -86,6 +97,10 @@ y_train = to_categorical(y_train) # tuple 10,000 * 10
 y_test = to_categorical(y_test) # tuple 10,000 * 10
 # shape 530*121*121
 print(y_test.shape, x_test.shape)
+
+## plotting data
+#from CVAEplots import plot_data
+#plot_data(x_test)
 
 ## reshape to matrix in able to feed into network
 #images = images.reshape(-1, 121, 121, 1) # 510, 121, 121, 1
@@ -143,7 +158,7 @@ encoder.summary()
 
 ### Make the decoder, takes the latent input to output the image
 # the only input to decoder is z_label
-latent_inputs = keras.Input(shape=(7), name = 'z_sampling')
+latent_inputs = keras.Input(shape=(5), name = 'z_sampling')
 dec_x = layers.Dense(512, activation='relu')(latent_inputs)
 dec_x = layers.Dense(128, activation='relu')(dec_x)
 #dec_x = layers.Dense(64, activation='relu')(dec_x)
@@ -161,7 +176,6 @@ cvae = keras.Model([x, label], outputs, name='vae')
 
 
 # use a custom loss function, this includes a KL divergence regularisation term which ensures that z is close to normal (0 mean, 1 sd)
-
 reconstruction_loss = keras.losses.binary_crossentropy(x, outputs)
 reconstruction_loss *= origin_dim
 
@@ -216,7 +230,7 @@ reconstruction_plot(x_test, y_test, cvae)
 # Plotting digits as wrong labels 
 # setting fake label
 label = np.repeat(2, len(y_test))
-label_fake = to_categorical(label, num_classes=5)
+label_fake = to_categorical(label, num_classes=2)
 reconstruction_plot(x_test, label_fake, cvae)
 ###############################################################
 
