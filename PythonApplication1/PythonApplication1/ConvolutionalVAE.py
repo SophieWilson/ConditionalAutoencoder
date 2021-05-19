@@ -17,7 +17,7 @@ if gpus:
         print(e)
 
 
-epochs = 100
+epochs = 1
 origin_dim = 28 * 28
 batch_size = 32
 #intermediate_dim = 64
@@ -175,7 +175,7 @@ def plot_latent_space(vae, n=30, figsize=15):
     plt.imshow(figure, cmap="Greys_r")
     plt.show()
 
-plot_latent_space(vae)
+#plot_latent_space(vae)
 
 # loss plot
 def lossplot(history):
@@ -191,7 +191,7 @@ def lossplot(history):
     plt.legend()
     plt.show()
 
-lossplot(history)
+#lossplot(history)
 
 #loss_values = history.history['accuracy']
 #epochs = range(1, len(loss_values)+1)
@@ -217,7 +217,7 @@ def plot_label_clusters(vae, data, labels):
 (x_train, y_train), _ = keras.datasets.mnist.load_data()
 x_train = np.expand_dims(x_train, -1).astype("float32") / 255
 
-plot_label_clusters(vae, x_train, y_train)
+#plot_label_clusters(vae, x_train, y_train)
 
 
 # Plotting reconstruction vs actual
@@ -241,5 +241,8 @@ def reconstruction_plot(x_test, vae, n=10):
         ax.get_yaxis().set_visible(False)   
     #plt.show()
 
-reconstruction_plot(x_test, vae)
+
+from CVAEplots import reconstruction_plot
+reconstruction_plot(x_test, y_test, vae)
+
 plt.show()

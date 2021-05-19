@@ -72,12 +72,27 @@ def reconstruction_plot(x_test, y_test, model, n=9):
         ax.get_yaxis().set_visible(False)
         # Display reconstruction
         ax = plt.subplot(2, n, i + n)
+        ax.set_title(y_test[i])
         plt.imshow(prediction[i].reshape(quard,quard))
         plt.gray()
         ax.get_xaxis().set_visible(False)
-        ax.get_yaxis().set_visible(False)   
+        ax.get_yaxis().set_visible(False)
     plt.show()
+
 #reconstruction_plot([x_test, y_test], cvae)
+
+def plot_data(x_test, n=9):
+    fig = plt.figure(figsize=(20, 2))
+    fig.suptitle('Input digits', fontsize=15)
+    for i in range(1, n + 1):
+        # Display original
+        ax = plt.subplot(2, n, i)
+        quard = int(math.sqrt(x_test.shape[1])) # sqrt of x dimension
+        plt.imshow(x_test[i].reshape(quard, quard))
+        plt.gray()
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+    plt.show()
 
 # loss plot
 def lossplot(history):
@@ -186,11 +201,11 @@ def plot_y_axis_change(dig, sides, max_z, decoder):
     img_it = 0
     fig = plt.figure(figsize = (2, 20))
     fig.suptitle('Varying y', fontsize=10)
+    vec = construct_numvec(dig, z_)
+    decoded = decoder.predict(vec)
     for i in range(0, sides):
         z1 = (((i / (sides-1)) * max_z)*2) - max_z
         z_ = [z1, 0] # This is where the y axis changes
-        vec = construct_numvec(dig, z_)
-        decoded = decoder.predict(vec)
         ax = plt.subplot(10, 1, 1 + img_it)
         img_it +=1
         plt.imshow(decoded.reshape(28, 28), cmap = plt.cm.gray)
