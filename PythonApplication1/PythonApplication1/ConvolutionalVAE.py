@@ -17,9 +17,9 @@ if gpus:
         print(e)
 
 
-epochs = 1
+epochs = 20
 origin_dim = 28 * 28
-batch_size = 32
+batch_size = 128
 #intermediate_dim = 64
 latent_dim = 2 
 
@@ -41,7 +41,6 @@ class Sampling(layers.Layer):
 latent_dim = 2
 
 
-
 encoder_inputs = keras.Input(shape=(28, 28, 1))
 #x = layers.Conv2D(16, (3, 3), activation='relu', padding='same')(encoder_inputs) #28 x 28 x 32 output
 #x = layers.MaxPooling2D(pool_size=(2, 2))(x) #14 x 14 x 32 output
@@ -54,11 +53,10 @@ x = layers.Conv2D(64, 3, activation="relu", strides=2, padding="same")(x)
 x = layers.Flatten()(x)
 x = layers.Dense(16, activation="relu")(x)
 z_mean = layers.Dense(latent_dim, name="z_mean")(x)
-z_log_var = layers.Dense(latent_dim, name="z_log_var")(x)
-z = Sampling()([z_mean, z_log_var])
-encoder = keras.Model(encoder_inputs, [z_mean, z_log_var, z], name="encoder")
+z_log_sigma = layers.Dense(latent_dim, name="z_log_var")(x)
+z = Sampling()([z_mean, z_log_sigma])
+encoder = keras.Model(encoder_inputs, [z_mean, z_log_sigma, z], name="encoder")
 encoder.summary()
-
 
 # Decoder
 latent_inputs = keras.Input(shape=(latent_dim,))
@@ -78,65 +76,36 @@ decoder_outputs = layers.Conv2DTranspose(1, 3, activation="sigmoid", padding="sa
 decoder = keras.Model(latent_inputs, decoder_outputs, name="decoder")
 decoder.summary()
 
-# Make the VAE class
-class VAE(keras.Model):
-    def __init__(self, encoder, decoder, **kwargs):
-        super(VAE, self).__init__(**kwargs)
-        self.encoder = encoder
-        self.decoder = decoder
-        self.total_loss_tracker = keras.metrics.Mean(name="total_loss")
-        self.reconstruction_loss_tracker = keras.metrics.Mean(
-            name="reconstruction_loss"
-        )
-        self.kl_loss_tracker = keras.metrics.Mean(name="kl_loss")
+outputs = decoder(encoder(encoder_inputs)[2])
+print(outputs)
 
-    @property
-    def metrics(self):
-        return [
-            self.total_loss_tracker,
-            self.reconstruction_loss_tracker,
-            self.kl_loss_tracker,
-        ]
+vae = keras.Model(encoder_inputs, outputs, name='vae')
 
-    def train_step(self, data):
-        with tf.GradientTape() as tape:
-            z_mean, z_log_var, z = self.encoder(data)
-            reconstruction = self.decoder(z)
-            reconstruction_loss = tf.reduce_mean(
-                tf.reduce_sum(
-                    keras.losses.binary_crossentropy(data, reconstruction), axis=(1, 2)
-                )
-            )
-            kl_loss = -0.5 * (1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var))
-            kl_loss = tf.reduce_mean(tf.reduce_sum(kl_loss, axis=1))
-            total_loss = reconstruction_loss + kl_loss
-        grads = tape.gradient(total_loss, self.trainable_weights)
-        self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
-        self.total_loss_tracker.update_state(total_loss)
-        self.reconstruction_loss_tracker.update_state(reconstruction_loss)
-        self.kl_loss_tracker.update_state(kl_loss)
-        return {
-            "loss": self.total_loss_tracker.result(),
-            "reconstruction_loss": self.reconstruction_loss_tracker.result(),
-            "kl_loss": self.kl_loss_tracker.result(),
-        }
-    def call(self, data):
-        z = self.encoder(data)
-        reconstruction = self.decoder(z) 
-        return y_pred        
-
+reconstruction_loss = keras.losses.binary_crossentropy(encoder_inputs, outputs)
+reconstruction_loss *= origin_dim
+reconstruction_loss = K.mean(reconstruction_loss)
+kl_loss = 1 + z_log_sigma - K.square(z_mean) - K.exp(z_log_sigma)
+kl_loss = K.sum(kl_loss, axis=-1)
+kl_loss *= -0.5
+vae_loss = K.mean(reconstruction_loss + kl_loss)
+vae.add_loss(vae_loss)
+vae.compile(optimizer=keras.optimizers.Adam())
 
 # train VAE on MNIST
-(x_train, _), (x_test, _) = keras.datasets.mnist.load_data()
-mnist_digits = np.concatenate([x_train, x_test], axis=0)
-mnist_digits = np.expand_dims(mnist_digits, -1).astype("float32") / 255
-
-vae = VAE(encoder, decoder)
+(x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
+# reshaping the data (google why this way)
+x_train = np.reshape(x_train, (len(x_train), 28, 28, 1))
+x_test = np.reshape(x_test, (len(x_test), 28, 28, 1))
+# then changing the data type and making pixel values between 1 and 0
+x_train = x_train.astype('float32') / 255
+x_test = x_test.astype('float32') / 255
+print(x_train.shape, x_test.shape)                 
+#vae = VAE(encoder, decoder)
 #vae_output = decoder(encoder(encoder_inputs)[2])
 #vae  = keras.Model(encoder_inputs, vae_output, name='vae')
 #vae.summary()
-vae.compile(optimizer=keras.optimizers.Adam())
-history = vae.fit(mnist_digits, epochs=epochs, batch_size=batch_size)
+#vae.compile(optimizer=keras.optimizers.Adam())
+history = vae.fit(x_train, x_train, batch_size= batch_size, epochs=epochs, verbose = 2)
 # .fit function returns history object with loss metrics
 print(history.history.keys())
 
@@ -203,9 +172,9 @@ def lossplot(history):
 
 # Display how the latent space clusters the digit classes
 
-def plot_label_clusters(vae, data, labels):
+def plot_label_clusters(encoder, data, labels):
     # display a 2D plot of the digit classes in the latent space
-    z_mean, _, _ = vae.encoder.predict(data)
+    z_mean, _, _ = encoder.predict(data)
     plt.figure(figsize=(12, 10))
     plt.scatter(z_mean[:, 0], z_mean[:, 1], c=labels)
     plt.colorbar()
@@ -214,14 +183,14 @@ def plot_label_clusters(vae, data, labels):
     #plt.show()
 
 
-(x_train, y_train), _ = keras.datasets.mnist.load_data()
+(x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
 x_train = np.expand_dims(x_train, -1).astype("float32") / 255
 
-#plot_label_clusters(vae, x_train, y_train)
+plot_label_clusters(encoder, x_train, y_train)
 
 
 # Plotting reconstruction vs actual
-def reconstruction_plot(x_test, vae, n=10):
+def reconstruction_plot(x_test, encoder, decoder, n=10):
 
     plt.figure(figsize=(20, 4))
     for i in range(1, n + 1):
@@ -231,18 +200,18 @@ def reconstruction_plot(x_test, vae, n=10):
         plt.gray()
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
-        z = vae.encoder.predict(x_test)[2]
-        predictions = vae.decoder.predict(z)
+        z = encoder.predict(x_test)[2]
+        predictions = decoder.predict(z)
         # display reconstruction
         ax = plt.subplot(2, n, i + n)
         plt.imshow(predictions[i].reshape(28,28))
         plt.gray()
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)   
-    #plt.show()
+   # plt.show()
 
 
-from CVAEplots import reconstruction_plot
-reconstruction_plot(x_test, y_test, vae)
+#from CVAEplots import reconstruction_plot
+reconstruction_plot(x_test, encoder, decoder)
 
 plt.show()
