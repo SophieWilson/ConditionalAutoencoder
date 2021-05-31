@@ -156,7 +156,7 @@ vae = keras.Model(encoder_inputs, outputs, name='vae')
 #kl_loss = 1 + z_log_sigma - K.square(z_mean) - K.exp(z_log_sigma)
 #kl_loss = K.sum(kl_loss, axis=-1)
 #kl_loss *= -0.5
-
+print(x_test[1][1].shape)
 
 reconstruction_loss = keras.losses.binary_crossentropy(encoder_inputs, outputs)
 reconstruction_loss *= origin_dim
@@ -169,8 +169,7 @@ vae_loss = K.mean(reconstruction_loss + kl_loss)
 vae.add_loss(vae_loss)
 vae.compile(optimizer=keras.optimizers.Adam())
 # fit the data
-vae.fit(x_train, x_train, epochs=epochs, batch_size=batch_size, validation_data = (x_test, x_test))
-
+vae.fit(x_train, x_train, epochs=epochs, batch_size=batch_size, validation_data = (x_test, x_test), verbose=2)
 
 
 
@@ -178,51 +177,51 @@ vae.fit(x_train, x_train, epochs=epochs, batch_size=batch_size, validation_data 
 
 # Display how the latent space clusters the digit classes
 import matplotlib.pyplot as plt
-def plot_clusters(encoder, data, labels, batch_size):
-    x_test_encoded, _, _ = encoder.predict(x_test, batch_size=batch_size)
-    plt.figure(figsize=(6, 6))
-    plt.scatter(x_test_encoded[:, 0], x_test_encoded[:, 1], c=y_test)
-    plt.colorbar()
-    plt.xlabel("z[0]")
-    plt.ylabel("z[1]")
-    #plt.show()
+#def plot_clusters(encoder, data, labels, batch_size):
+#    x_test_encoded, _, _ = encoder.predict(x_test, batch_size=batch_size)
+#    plt.figure(figsize=(6, 6))
+#    plt.scatter(x_test_encoded[:, 0], x_test_encoded[:, 1], c=y_test)
+#    plt.colorbar()
+#    plt.xlabel("z[0]")
+#    plt.ylabel("z[1]")
+#    #plt.show()
 
-plot_clusters(encoder, x_test, y_test, batch_size)
+#plot_clusters(encoder, x_test, y_test, batch_size)
 
 # Display a 2D grid of the digits
-def digit_grid(decoder, n=30, figsize=15):
-    n = 15  # figure with 15x15 digits
-    scale = 1.0
-    digit_size = 28 # size of digits
-    figure = np.zeros((digit_size * n, digit_size * n))
-    # We will sample n points within [-15, 15] standard deviations
-    #linearly spaced coordinates corresponding to the 2D plot of digit classes in the latent space
-    grid_x = np.linspace(-scale, scale, n)
-    grid_y = np.linspace(-scale, scale, n)[::-1]
+#def digit_grid(decoder, n=30, figsize=15):
+#    n = 15  # figure with 15x15 digits
+#    scale = 1.0
+#    digit_size = 28 # size of digits
+#    figure = np.zeros((digit_size * n, digit_size * n))
+#    # We will sample n points within [-15, 15] standard deviations
+#    #linearly spaced coordinates corresponding to the 2D plot of digit classes in the latent space
+#    grid_x = np.linspace(-scale, scale, n)
+#    grid_y = np.linspace(-scale, scale, n)[::-1]
 
-    for i, yi in enumerate(grid_x): 
-        for j, xi in enumerate(grid_y): # cycling through grid spots
-            z_sample = np.array([[xi, yi]]) # sampling from space
-            x_decoded = decoder.predict(z_sample) # taking prediction from that latent space
-            digit = x_decoded[0].reshape(digit_size, digit_size) # reshaping to plot
-            figure[i * digit_size: (i + 1) * digit_size,
-                   j * digit_size: (j + 1) * digit_size] = digit
+#    for i, yi in enumerate(grid_x): 
+#        for j, xi in enumerate(grid_y): # cycling through grid spots
+#            z_sample = np.array([[xi, yi]]) # sampling from space
+#            x_decoded = decoder.predict(z_sample) # taking prediction from that latent space
+#            digit = x_decoded[0].reshape(digit_size, digit_size) # reshaping to plot
+#            figure[i * digit_size: (i + 1) * digit_size,
+#                   j * digit_size: (j + 1) * digit_size] = digit
     
-    plt.figure(figsize=(figsize, figsize))
-    start_range = digit_size // 2
-    end_range = n * digit_size + start_range
-    pixel_range = np.arange(start_range, end_range, digit_size)
-    sample_range_x = np.round(grid_x, 1)
-    sample_range_y = np.round(grid_y, 1)
-    plt.xticks(pixel_range, sample_range_x)
-    plt.yticks(pixel_range, sample_range_y)
-    plt.xlabel("z[0]")
-    plt.ylabel("z[1]")
-    plt.imshow(figure, cmap="Greys_r")
-    #plt.show()
+#    plt.figure(figsize=(figsize, figsize))
+#    start_range = digit_size // 2
+#    end_range = n * digit_size + start_range
+#    pixel_range = np.arange(start_range, end_range, digit_size)
+#    sample_range_x = np.round(grid_x, 1)
+#    sample_range_y = np.round(grid_y, 1)
+#    plt.xticks(pixel_range, sample_range_x)
+#    plt.yticks(pixel_range, sample_range_y)
+#    plt.xlabel("z[0]")
+#    plt.ylabel("z[1]")
+#    plt.imshow(figure, cmap="Greys_r")
+#    #plt.show()
 
-digit_grid(decoder)
-
+#digit_grid(decoder)
+print(x_test[1][1])
 # Plotting reconstruction vs actual
 def reconstruction_plot(x_test, vae, n=10):
     prediction = vae.predict(x_test)
@@ -230,14 +229,14 @@ def reconstruction_plot(x_test, vae, n=10):
     for i in range(1, n + 1):
         # Display original
         ax = plt.subplot(2, n, i)
-        plt.imshow(x_test[i].reshape(28, 28))
+        plt.imshow(x_test[i][1].reshape(124, 124))
         plt.gray()
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
 
         # display reconstruction
         ax = plt.subplot(2, n, i + n)
-        plt.imshow(prediction[i].reshape(28,28))
+        plt.imshow(prediction[i][1].reshape(124,124))
         plt.gray()
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)   
