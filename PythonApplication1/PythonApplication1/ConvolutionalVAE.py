@@ -42,13 +42,10 @@ latent_dim = 2
 
 
 encoder_inputs = keras.Input(shape=(28, 28, 1))
-#x = layers.Conv2D(16, (3, 3), activation='relu', padding='same')(encoder_inputs) #28 x 28 x 32 output
-#x = layers.MaxPooling2D(pool_size=(2, 2))(x) #14 x 14 x 32 output
-#x = layers.Conv2D(8, (3, 3), activation='relu', padding='same')(x) #14 x 14 x 64 output
-#x = layers.MaxPooling2D(pool_size=(2, 2))(x) #7 x 7 x 64 output
-#x = layers.Conv2D(8, (3, 3), activation='relu', padding='same', name="encoded")(x) #7 x 7 x 128 (small and thick) output (bottleneck)
+
 # This is where working thing starts! (below)
 x = layers.Conv2D(32, 3, activation="relu", strides=2, padding="same")(encoder_inputs)
+x = layers.MaxPooling2D(pool_size=(2, 2))(x) #14 x 14 x 32 output
 x = layers.Conv2D(64, 3, activation="relu", strides=2, padding="same")(x)
 x = layers.Flatten()(x)
 x = layers.Dense(16, activation="relu")(x)
@@ -60,16 +57,9 @@ encoder.summary()
 
 # Decoder
 latent_inputs = keras.Input(shape=(latent_dim,))
-#x = layers.Dense(7 * 7 * 64, activation="relu")(latent_inputs)
-#x = layers.Reshape((7, 7, 64))(x)
-#x = layers.Conv2D(8, (3, 3), activation='relu', padding='same')(x) #7 x 7 x 128
-#x = layers.UpSampling2D((2,2))(x) # 14 x 14 x 128
-#x = layers.Conv2D(16, (3, 3), activation='relu', padding='same')(x) # 14 x 14 x 64
-#x = layers.UpSampling2D((2,2))(x) # 28 x 28 x 64
-#decoder_outputs = layers.Conv2D(1, (3, 3), activation='sigmoid', padding='same')(x) # 28 x 28 x 1
 ## Working decoder below
-x = layers.Dense(7 * 7 * 64, activation="relu")(latent_inputs)
-x = layers.Reshape((7, 7, 64))(x)
+x = layers.Dense(7 * 7 * 32, activation="relu")(latent_inputs)
+x = layers.Reshape((7, 7, 32))(x)
 x = layers.Conv2DTranspose(64, 3, activation="relu", strides=2, padding="same")(x)
 x = layers.Conv2DTranspose(32, 3, activation="relu", strides=2, padding="same")(x)
 decoder_outputs = layers.Conv2DTranspose(1, 3, activation="sigmoid", padding="same")(x)
@@ -84,10 +74,13 @@ vae = keras.Model(encoder_inputs, outputs, name='vae')
 reconstruction_loss = keras.losses.binary_crossentropy(encoder_inputs, outputs)
 reconstruction_loss *= origin_dim
 reconstruction_loss = K.mean(reconstruction_loss)
-kl_loss = 1 + z_log_sigma - K.square(z_mean) - K.exp(z_log_sigma)
-kl_loss = K.sum(kl_loss, axis=-1)
-kl_loss *= -0.5
-vae_loss = K.mean(reconstruction_loss + kl_loss)
+
+
+#reconstruction_loss = tf.reduce_mean(tf.reduce_sum(keras.losses.binary_crossentropy(encoder_inputs, outputs), axis= (1,2)))
+kl_loss = -0.5 * (1 + z_log_sigma - tf.square(z_mean) - tf.exp(z_log_sigma))
+kl_loss = tf.reduce_mean(tf.reduce_sum(kl_loss, axis = 1))
+vae_loss = reconstruction_loss + kl_loss
+
 vae.add_loss(vae_loss)
 vae.compile(optimizer=keras.optimizers.Adam())
 
@@ -105,7 +98,16 @@ print(x_train.shape, x_test.shape)
 #vae  = keras.Model(encoder_inputs, vae_output, name='vae')
 #vae.summary()
 #vae.compile(optimizer=keras.optimizers.Adam())
-history = vae.fit(x_train, x_train, batch_size= batch_size, epochs=epochs, verbose = 2)
+# Tensorboard
+from keras.callbacks import TensorBoard
+import datetime
+log_dir = "C:/Users/Mischa/sophie/logs" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+tensorboard_callback = TensorBoard(log_dir=log_dir)
+# Adding early stopping
+es_callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=6)
+
+
+history = vae.fit(x_train, x_train, batch_size= batch_size, epochs=epochs, verbose = 2, callbacks=[tensorboard_callback, es_callback], validation_data=(x_test,x_test))
 # .fit function returns history object with loss metrics
 print(history.history.keys())
 
