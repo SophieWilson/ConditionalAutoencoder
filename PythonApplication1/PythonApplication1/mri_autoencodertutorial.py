@@ -1,3 +1,4 @@
+  
 #import os
 #import tensorflow as tf
 #os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
@@ -43,7 +44,7 @@ import pandas as pd
 
 filepath_df = pd.read_csv('Z:/PRONIA_data/Tables/pronia_full_niftis.csv')
 
-num_subjs = 698 # max 698
+num_subjs = 200 # max 698
 mri_types =['wp0', # whole brain
             'wp1', # gm
             'wp2', # wm
@@ -72,14 +73,14 @@ mri_types =['wp0', # whole brain
 
 niis = []
 
-for i in range(10):
+for i in range(num_subjs):
     row = filepath_df.iloc[i]
     nii_path = row['wp0']
     nii = nib.load(nii_path)
     nii = nii.get_fdata()
-    nii = nii[:, 78:129, :]
+    nii = nii[:, 78:90, :]
     for j in range(nii.shape[1]):
-        niis.append((nii[:,i,:]))
+        niis.append((nii[:,j,:]))
 
 #print(nii.shape) # 121, 51, 121
 
@@ -103,7 +104,7 @@ images = (images - mi) / (m - mi)
 #print(np.min(images), np.max(images)) # 0, 1
 
 # Pad images iwth zeros at boundaries so the dimenson is even and easier to downsample images by two while passing through model. Add in three rows and columns to make dim 176*176
-temp = np.zeros([510,124,124,1])
+temp = np.zeros([2400,124,124,1])
 temp[:,3:,3:,:] = images
 images = temp # dim now 510 *124*124*1
 
@@ -127,7 +128,7 @@ print("Dataset (images) shape: {shape}".format(shape=images.shape))
 
 # Convolutional autoencoder
 batch_size = 64
-epochs = 50
+epochs = 500
 inChannel = 1
 x, y = 124, 124
 input_img = Input(shape = (x, y, inChannel))
@@ -155,7 +156,7 @@ autoencoder.compile(loss='mean_squared_error', optimizer = RMSprop())
 autoencoder.summary()
 
 # Train
-autoencoder_train = autoencoder.fit(train_X, train_ground, batch_size=batch_size,epochs=epochs,verbose=1,validation_data=(valid_X, valid_ground))
+autoencoder_train = autoencoder.fit(train_X, train_ground, batch_size=batch_size,epochs=epochs,verbose=2,validation_data=(valid_X, valid_ground))
 
 # Plot loss
 #history = autoencoder_train
