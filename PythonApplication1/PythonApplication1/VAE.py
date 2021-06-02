@@ -16,7 +16,7 @@ if gpus:
         print(e)
 
 
-epochs = 50
+epochs = 5
 origin_dim = 28 * 28
 batch_size = 128
 intermediate_dim = 64
@@ -73,7 +73,7 @@ x_train = x_train.astype('float32') / 255
 x_test = x_test.astype('float32') / 255
 x_train = x_train.reshape((len(x_train), np.prod(x_train.shape[1:])))
 x_test = x_test.reshape((len(x_test), np.prod(x_test.shape[1:])))
-
+print(x_test.shape)
 # fit the data
 vae.fit(x_train, x_train, epochs=epochs, batch_size=batch_size, validation_data = (x_test, x_test))
 
