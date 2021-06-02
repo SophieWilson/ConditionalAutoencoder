@@ -23,21 +23,9 @@ import math
 import glob
 import nibabel as nib #reading MR images
 from sklearn.model_selection import train_test_split
-# load in MNIST
-#(x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
-#x_train = x_train.astype('float32') / 255
-#x_test = x_test.astype('float32') / 255
-#x_train = x_train.reshape((len(x_train), np.prod(x_train.shape[1:]))) # 10 * 784 * 60,000
-#x_test = x_test.reshape((len(x_test), np.prod(x_test.shape[1:]))) # 10 * 784 * 10,000
-# convert y to onehot
-#plot_labels_test = y_test
-#plot_labels_train = y_train
-#y_train = to_categorical(y_train) # tuple 10,000 * 10
-#y_test = to_categorical(y_test) # tuple 10,000 * 10
 
 filepath_df = pd.read_csv('Z:/PRONIA_data/Tables/pronia_full_niftis.csv')
 
-num_subjs = 698 # max 698
 mri_types =['wp0', # whole brain
             'wp1', # gm
             'wp2', # wm
@@ -46,87 +34,58 @@ mri_types =['wp0', # whole brain
             'rp2'] # wm mask
 
 niis = []
-#'wp0', # whole brain?
-#'wp1', # gm
-#'wp2', # wm
-#'mwp2', # modulated? wm
-#'rp1', # gm mask
-#'rp2', # wm mask
+num_subjs = 50 # max 698
 labels = []
-for i in range(100):
+
+for i in range(num_subjs):
     row = filepath_df.iloc[i]
     nii_path = row['wp0']
     nii = nib.load(nii_path)
     nii = nii.get_fdata()
-    nii = nii[:, 78:79, :] # was 78:129
-    labels.append(row['SEX_T0'])
-    niis.append(nii)
-    #for j in range(nii.shape[1]):  # To get only one layer remove this loop and take only one slice
-    #    niis.append((nii[:,j,:]))
-    #    labels.append(row['STUDYGROUP'])
+    nii = nii[:, 78:80, :]
+    labels.append(row['STUDYGROUP'])
+    for j in range(nii.shape[1]):
+        niis.append((nii[:,j,:]))
+        
 
+depth = len(nii[2])
 
-
-
-print(nii.shape) # 121, 51, 121
-#nii[:,0,:].shape
-
-# Loading in the labels
-metadata = pd.read_csv('Z:/PRONIA_data/Tables/pronia_full_niftis.csv')
-print(len(labels))
-
-# Preprocessing
-images = np.asarray(niis)
+images = np.asarray(niis) # shape num_subjs*121*121
+# reshape to matrix in able to feed into network
+print('55', images.shape)
+images = images.reshape(-1, depth, 121, 121) # num_subjs,depth,121,121,
+### min-max normalisation to rescale between 1 and 0 to improve accuracy
+m = np.max(images)
+mi = np.min(images) 
+images = (images - mi) / (m - mi)
+## Pad images with zeros at boundaries so the dimenson is even and easier to downsample images by two while passing through model. Add in three rows and columns to make dim 176*176
+temp = np.zeros([num_subjs, depth,124,124])
+temp[:,:,3:,3:,] = images
 print(images.shape)
+images = temp # dim now 5*2*124*124 # could replace temp with images 
 
-#from CVAEplots import plot_data
-#plot_data(images)
-
-images = images.reshape(-1, 121, 121, 1)
-#print(images.shape) # 510,121,121,1
-
-
-x_train,x_test,y_train,y_test = train_test_split(images, labels, test_size=0.2, random_state=13) # x_train 408, 121, 121
-x_train = x_train.astype('float32') / 255 # 408, 121, 121
-x_test = x_test.astype('float32') / 255 # 102, 121, 121
-
-x_train = x_train.reshape((len(x_train), np.prod(x_train.shape[1:]))) # 408, 14641
-x_test = x_test.reshape((len(x_test), np.prod(x_test.shape[1:]))) # 102, 14641
-
+# test train split (no labels for vae)
+from sklearn.model_selection import train_test_split
+x_train,x_test,y_train,y_test = train_test_split(images, labels, test_size=0.2, random_state=13)
 y_train = to_categorical(y_train) # tuple 10,000 * 10
 y_test = to_categorical(y_test) # tuple 10,000 * 10
-# shape 530*121*121
-print(y_test.shape, x_test.shape)
+print(y_test.shape, y_train.shape)
+#x_train = x_train.astype('float32') / 255 # 408, 121, 121
+#x_test = x_test.astype('float32') / 255 # 102, 121, 121
+#x_train = x_train.reshape((len(x_train), np.prod(x_train.shape[1:]))) # 408, 14641
+#x_test = x_test.reshape((len(x_test), np.prod(x_test.shape[1:]))) # 102, 14641
 
-## plotting data
-#from CVAEplots import plot_data
-#plot_data(x_test)
-
-## reshape to matrix in able to feed into network
-#images = images.reshape(-1, 121, 121, 1) # 510, 121, 121, 1
-## min-max normalisation to rescale (why?)
-#m = np.max(images)
-#mi = np.min(images)
-#print(m ,mi) # 2.99, 0 
-#images = (images - mi) / (m - mi) # 0, 1
-## Pad images iwth zeros at boundaries so the dimenson is even and easier to downsample images by two while passing through model. Add in three rows and columns to make dim 176*176
-#temp = np.zeros([510,124,124,1])
-#temp[:,3:,3:,:] = images
-#images = temp # dim now 510 *124*124*1
-## test train split (no labels for standard autoencoder)
-
-
-## Data exploration ##
-# training shape
+ # Autoencoder variables
 epochs = 50
-origin_dim = 121 * 121
-batch_size = 128
-intermediate_dim = 64
+batch_size = 64
+intermediate_dim = 124
 latent_dim = 2
-n_y = y_train.shape[1] # 10
+n_y = y_train.shape[1] # 2
 n_x = x_train.shape[1] # 784
-print(n_y, n_x)
 n_z = 2
+X, y = 124, 124 
+inchannel = 1
+origin_dim = 28*28
 
 # Make a sampling layer, this maps the MNIST digit to latent-space triplet (z_mean, z_log_var, z), this is how the bottleneck is displayed. 
 from keras import backend as K
@@ -137,75 +96,69 @@ def sampling(args):
     return z_mean + K.exp(z_log_sigma) * epsilon
 
 # Set inputs
-x = keras.Input(shape=(origin_dim, ))
-label = keras.Input(shape=(n_y, ))
-encoder_inputs = concatenate([x, label])
-#encoder_inputs = x
-## Make the encoder
-# outputs, as this is variational you have two outputs, the mean and the sigma of the latent dimension, so it takes a sample from this distribtion to run through back propagation. As you cant back propagation from a sample distribution epsilon is added to z to allow it to be run through the decoder. This is what the sampling funciton does.
-h = layers.Dense(512, activation='relu')(encoder_inputs)
-h = layers.Dense(128, activation='relu')(h)
-#h = layers.Dense(64, activation='relu')(h)
-h = layers.Dense(intermediate_dim, activation='relu')(h)
-z_mean = layers.Dense(latent_dim, name="z_mean")(h)
-z_log_sigma = layers.Dense(latent_dim, name="z_log_sigma")(h)
+from tensorflow.keras.layers import Input, BatchNormalization, Conv3D, Dense, Flatten, Lambda, Reshape, Conv3DTranspose
 
+label = keras.Input(shape=(n_y, ))
+encoder_inputs = keras.Input(shape=(depth, X, y, inchannel)) # it will add a None layer as batch size
+
+x = layers.Conv3D(32, (3, 3, 3), activation="relu", padding="same")(encoder_inputs)
+x = layers.MaxPooling3D(pool_size=(2, 2, 2))(x) 
+x = layers.Conv3D(64, (3, 3, 3), activation="relu",  padding="same")(x)
+#x = layers.MaxPooling3D(pool_size=(2, 2, 2))(x) 
+x = layers.Conv3D(32, (3, 3, 3), activation="relu",  padding="same")(x)
+#x = layers.MaxPooling3D(pool_size=(2, 2, 2))(x) 
+x = layers.Conv3D(16, (3, 3, 3), activation="relu",  padding="same")(x)
+x = layers.Conv3D(8, (3, 3, 3), activation="relu",  padding="same")(x)
+x = layers.Flatten()(x)
+#x = layers.Dense(16, activation="relu")(x)
+z_mean = layers.Dense(latent_dim, name="z_mean")(x)
+z_log_sigma = layers.Dense(latent_dim, name="z_log_var")(x)
 z = layers.Lambda(sampling)([z_mean, z_log_sigma])
 z_label = concatenate([z, label])
-# initiating the encoder, it ouputs the latent dim dimensions
-encoder = keras.Model([x, label], [z_mean, z_log_sigma, z_label], name="encoder")
+## initiating the encoder, it ouputs the latent dim dimensions
+encoder = keras.Model([encoder_inputs, label], [z_mean, z_log_sigma, z_label], name="encoder")
 encoder.summary()
 
-### Make the decoder, takes the latent input to output the image
-# the only input to decoder is z_label
-latent_inputs = keras.Input(shape=(5), name = 'z_sampling')
-dec_x = layers.Dense(512, activation='relu')(latent_inputs)
-dec_x = layers.Dense(128, activation='relu')(dec_x)
-#dec_x = layers.Dense(64, activation='relu')(dec_x)
-dec_x = layers.Dense(intermediate_dim, activation='relu')(dec_x)
-decoder_outputs =  layers.Dense(origin_dim, activation='sigmoid')(dec_x)
+#### Make the decoder, takes the latent keras
+latent_inputs = keras.Input(shape=(7,))
+#x = layers.Dense(4, activation='relu')(latent_inputs)
+x =  layers.Dense(62*62*8, activation='relu')(latent_inputs)
+x = layers.Reshape((1, 62, 62, 8))(x)
+x = layers.Conv3DTranspose(8, (3, 3, 3), activation="relu", strides=2, padding="same")(x)
+x = layers.Conv3DTranspose(16, (3, 3, 3), activation="relu", padding="same")(x)
+x = layers.Conv3DTranspose(32, (3, 3, 3), activation="relu",  padding="same")(x)
+x = layers.Conv3DTranspose(64, (3, 3, 3), activation="relu",  padding="same")(x)
+decoder_outputs = layers.Conv3DTranspose(1, 3, activation="sigmoid", padding="same")(x)
+# Initiate decoder
 decoder = keras.Model(latent_inputs, decoder_outputs, name="decoder")
 decoder.summary()
 
-
-# instantiate the VAE model (simplified)
-#print(encoder(encoder_inputs))
-#decoder takes only z input from encoder
-outputs = decoder(encoder([x, label])[2])
-cvae = keras.Model([x, label], outputs, name='vae')
-
+# Instantiate and fit VAE model 
+outputs = decoder(encoder([encoder_inputs, label])[2])
+cvae = keras.Model([encoder_inputs, label], outputs, name='cvae')
 
 # use a custom loss function, this includes a KL divergence regularisation term which ensures that z is close to normal (0 mean, 1 sd)
-reconstruction_loss = keras.losses.binary_crossentropy(x, outputs)
+reconstruction_loss = keras.losses.binary_crossentropy(encoder_inputs, outputs)
 reconstruction_loss *= origin_dim
-
 kl_loss = 1 + z_log_sigma - K.square(z_mean) - K.exp(z_log_sigma)
 kl_loss = K.sum(kl_loss, axis=-1)
 kl_loss *= -0.5
-# mean was worse
-vae_loss = reconstruction_loss + kl_loss
-# does this just show up as loss?
-cvae.add_loss(vae_loss)
+cvae_loss = reconstruction_loss + kl_loss
+cvae.add_loss(cvae_loss)
 cvae.compile(optimizer='adam',)
-# can add more metrics below with this (i'll try it out later)
-#model.metrics_tensors.append(kl_loss)
-#model.metrics_names.append("kl_loss")
-#model.metrics_tensors.append(reconstruction_loss)
-#model.metrics_names.append("mse_loss")
+
 
 # Tensorboard
 from keras.callbacks import TensorBoard
 import datetime
-log_dir = "C:/Users/Mischa/sophie/logs" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+log_dir = "C:/Users/Mischa/sophie/MRI_CVAE" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 tensorboard_callback = TensorBoard(log_dir=log_dir)
 
 # Adding early stopping
 es_callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=6)
 
-# fit the data to MNIST
+# fit the data 
 history = cvae.fit([x_train, y_train], x_train, epochs=epochs, batch_size=batch_size, validation_data = ([x_test, y_test], x_test), verbose = 2, callbacks=[tensorboard_callback, es_callback])
-print(history.history.keys())
-
 
 ## Plots
 #from CVAEplots import plot_clusters
@@ -230,7 +183,7 @@ reconstruction_plot(x_test, y_test, cvae)
 # Plotting digits as wrong labels 
 # setting fake label
 label = np.repeat(2, len(y_test))
-label_fake = to_categorical(label, num_classes=2)
+label_fake = to_categorical(label, num_classes=3)
 reconstruction_plot(x_test, label_fake, cvae)
 ###############################################################
 
