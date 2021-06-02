@@ -101,7 +101,7 @@ print(x_train.shape, x_test.shape)
 # Tensorboard
 from keras.callbacks import TensorBoard
 import datetime
-log_dir = "C:/Users/Mischa/sophie/logs" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+log_dir = "C:/Users/Mischa/sophie/ConvolutionalVAE" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 tensorboard_callback = TensorBoard(log_dir=log_dir)
 # Adding early stopping
 es_callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=6)
