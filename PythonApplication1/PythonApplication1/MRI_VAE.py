@@ -1,4 +1,4 @@
-#butmake it conditional
+# THIS IS CONVOLUTIONAL
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
@@ -43,7 +43,7 @@ mri_types =['wp0', # whole brain
             'rp1', # gm mask
             'rp2'] # wm mask
 
-num_subjs = 698 # max 698
+num_subjs = 100 # max 698
 niis = []
 
 import nibabel as nib #reading MR images
@@ -53,38 +53,39 @@ for i in range(num_subjs):
     nii = nib.load(nii_path)
     nii = nii.get_fdata()
     nii = nii[:, 78:80, :]
-    niis.append(nii)
-    #for j in range(nii.shape[1]):
-    #    niis.append((nii[:,i,:]))
+    for j in range(nii.shape[1]):
+        niis.append((nii[:,j,:]))
 
+
+## Set autoencoder variables
+epochs = 200
+origin_dim = 28 * 28
+#intermediate_dim = 64
+latent_dim = 200 # compressing image to something
+batch_size = 16
+inchannel = 1
+X, y = 124, 124
 depth = len(nii[2]) # the number of slices set above
 
-# Preprocessing
+## Preprocessing
+
 images = np.asarray(niis) # shape num_subjs*121*121
 # reshape to matrix in able to feed into network
 images = images.reshape(-1, depth, 121, 121) # num_subjs,depth,121,121,
-## min-max normalisation to rescale between 1 and 0(why?)
+### min-max normalisation to rescale between 1 and 0 to improve accuracy
 m = np.max(images)
 mi = np.min(images) 
 images = (images - mi) / (m - mi)
-
-# Pad images with zeros at boundaries so the dimenson is even and easier to downsample images by two while passing through model. Add in three rows and columns to make dim 176*176
+## Pad images with zeros at boundaries so the dimenson is even and easier to downsample images by two while passing through model. Add in three rows and columns to make dim 176*176
 temp = np.zeros([num_subjs, depth,124,124])
 temp[:,:,3:,3:,] = images
-images = temp # dim now 510 *124*124*1
+print(images.shape)
+images = temp # dim now 5*2*124*124 # could replace temp with images 
 
 # test train split (no labels for vae)
 from sklearn.model_selection import train_test_split
 x_train,x_test,y_train,y_test = train_test_split(images, images, test_size=0.2, random_state=13)
 
-## Set autoencoder variables
-epochs = 500
-origin_dim = 28 * 28
-intermediate_dim = 64
-latent_dim = 2 
-batch_size = 64
-inchannel = 1
-x, y = 124, 124
 
 # Make a sampling layer, this maps the MNIST digit to latent-space triplet (z_mean, z_log_var, z), this is how the bottleneck is displayed. 
 from keras import backend as K
@@ -98,12 +99,17 @@ def sampling(args):
 # outputs, as this is variational you have two outputs, the mean and the sigma of the latent dimension, so it takes a sample from this distribtion to run through back propagation. As you cant back propagation from a sample distribution epsilon is added to z to allow it to be run through the decoder. This is what the sampling function does. (WHY RUN THROUGH LAMBDA)
 from tensorflow.keras.layers import Input, BatchNormalization, Conv3D, Dense, Flatten, Lambda, Reshape, Conv3DTranspose
 
-encoder_inputs = keras.Input(shape=(depth, x, y, inchannel))
-x = layers.Conv3D(32, (3, 3,3), activation="relu", padding="same")(encoder_inputs)
+encoder_inputs = keras.Input(shape=(depth, X, y, inchannel)) # it will add a None layer as batch size
+print(encoder_inputs.shape)
+x = layers.Conv3D(32, (3, 3, 3), activation="relu", padding="same")(encoder_inputs)
 x = layers.MaxPooling3D(pool_size=(2, 2, 2))(x) 
 x = layers.Conv3D(64, (3, 3, 3), activation="relu",  padding="same")(x)
+#x = layers.MaxPooling3D(pool_size=(2, 2, 2))(x) 
+x = layers.Conv3D(32, (3, 3, 3), activation="relu",  padding="same")(x)
+#x = layers.MaxPooling3D(pool_size=(2, 2, 2))(x) 
+x = layers.Conv3D(16, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.Flatten()(x)
-x = layers.Dense(16, activation="relu")(x)
+#x = layers.Dense(16, activation="relu")(x)
 z_mean = layers.Dense(latent_dim, name="z_mean")(x)
 z_log_sigma = layers.Dense(latent_dim, name="z_log_var")(x)
 z = layers.Lambda(sampling)([z_mean, z_log_sigma])
@@ -111,28 +117,24 @@ z = layers.Lambda(sampling)([z_mean, z_log_sigma])
 encoder = keras.Model(encoder_inputs, [z_mean, z_log_sigma, z], name="encoder")
 encoder.summary()
 
+#### Make the decoder, takes the latent keras
 latent_inputs = keras.Input(shape=(latent_dim,))
-#x = layers.Dense(62 * 62 * 64, activation="relu")(latent_inputs)
-#x = layers.Reshape((62, 62, 64))(x)
-##x = layers.Conv2DTranspose(64, (3, 3), activation="relu", strides=2, padding="same")(x)
-##x = layers.Conv2DTranspose(32, (3,3), activation="relu", strides=2, padding="same")(x)
-#x = layers.Conv2DTranspose(64, (3,3), activation="relu", padding="same")(x)
-#decoder_outputs = layers.Conv2DTranspose(1, (3,3), activation="sigmoid", padding="same")(x)
-#decoder = keras.Model(latent_inputs, decoder_outputs, name="decoder")
-#decoder.summary()
-#### Make the decoder, takes the latent
-#latent_inputs = keras.Input(shape=(x, y, 2), name = 'z_sampling')
-x = layers.Dense(intermediate_dim, activation='relu')(latent_inputs)
-x =  layers.Dense(depth*124*124, activation='sigmoid')(x)
-decoder_outputs = layers.Reshape((depth, 124, 124,1))(x)
+x = layers.Dense(latent_dim, activation='relu')(latent_inputs)
+x =  layers.Dense(62*62*16, activation='relu')(x)
+x = layers.Reshape((1, 62, 62, 16))(x)
+x = layers.Conv3DTranspose(16, (3, 3, 3), activation="relu", strides=2, padding="same")(x)
+x = layers.Conv3DTranspose(32, (3, 3, 3), activation="relu",  padding="same")(x)
+x = layers.Conv3DTranspose(64, (3, 3, 3), activation="relu",  padding="same")(x)
+decoder_outputs = layers.Conv3DTranspose(1, 3, activation="sigmoid", padding="same")(x)
+# Initiate decoder
 decoder = keras.Model(latent_inputs, decoder_outputs, name="decoder")
 decoder.summary()
 
-# instantiate and fit the VAE model (simplified)
+# Instantiate and fit VAE model 
 outputs = decoder(encoder(encoder_inputs)[2])
 vae = keras.Model(encoder_inputs, outputs, name='vae')
 
-# use a custom loss function, this includes a KL divergence regularisation term which ensures that z is close to normal (0 mean, 1 sd)
+# Custom loss function, this includes a KL divergence regularisation term which ensures that z is close to normal (0 mean, 1 sd)
 reconstruction_loss = keras.losses.binary_crossentropy(encoder_inputs, outputs)
 reconstruction_loss *= origin_dim
 reconstruction_loss = K.mean(reconstruction_loss) # mean to avoid incompatible shape error
@@ -148,11 +150,11 @@ from keras.callbacks import TensorBoard
 import datetime
 log_dir = "C:/Users/Mischa/sophie/MRI_VAE" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 tensorboard_callback = TensorBoard(log_dir=log_dir)
-# Adding early stopping
-es_callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=6)
+# Early stopping
+es_callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
 
 # fit the data
-history = vae.fit(x_train, x_train, epochs=epochs, batch_size=64, validation_data = (x_test, x_test), verbose=2, callbacks=[tensorboard_callback, es_callback])
+history = vae.fit(x_train, x_train, epochs=epochs, batch_size=batch_size, validation_data = (x_test, x_test), verbose=2, callbacks=[tensorboard_callback, es_callback])
 
 ## PLOT
 
@@ -204,28 +206,28 @@ import matplotlib.pyplot as plt
 #digit_grid(decoder)
 
 # Plotting reconstruction vs actual
-#def reconstruction_plot(x_test, vae, n=10):
-#    prediction = vae.predict(x_test)
-#    plt.figure(figsize=(20, 4))
-#    for i in range(1, n + 1):
-#        # Display original
-#        ax = plt.subplot(2, n, i)
-#        plt.imshow(x_test[i][1].reshape(124, 124)) # x_test[1][1] is shape 124,124
-#        plt.gray()
-#        ax.get_xaxis().set_visible(False)
-#        ax.get_yaxis().set_visible(False)
+def reconstruction_plot(x_test, vae, n=10):
+    prediction = vae.predict(x_test)
+    plt.figure(figsize=(20, 4))
+    for i in range(1, n + 1):
+        # Display original
+        ax = plt.subplot(2, n, i)
+        plt.imshow(x_test[i][0]) # x_test[1][1] is shape 124,124
+        plt.gray()
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
 
-#        # display reconstruction
-#        ax = plt.subplot(2, n, i + n)
-#        plt.imshow(prediction[i][1].reshape(124,124))
-#        plt.gray()
-#        ax.get_xaxis().set_visible(False)
-#        ax.get_yaxis().set_visible(False)   
-#    #plt.show()
+        # display reconstruction
+        ax = plt.subplot(2, n, i + n)
+        plt.imshow(prediction[i][0])
+        plt.gray()
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)   
+    #plt.show()
 
-#reconstruction_plot(x_test, vae)
-#plt.show()
-x_test[1][1].show()
+reconstruction_plot(x_test, vae)
+plt.show()
+
 
 def lossplot(history):
     ''' Plotting loss as a line graph, history is the variable saved in model.fit() '''
