@@ -34,7 +34,7 @@ mri_types =['wp0', # whole brain
             'rp2'] # wm mask
 
 niis = []
-num_subjs = 50 # max 698
+num_subjs = 500 # max 698
 labels = []
 
 for i in range(num_subjs):
@@ -74,10 +74,11 @@ print(y_test.shape, y_train.shape)
 #x_test = x_test.astype('float32') / 255 # 102, 121, 121
 #x_train = x_train.reshape((len(x_train), np.prod(x_train.shape[1:]))) # 408, 14641
 #x_test = x_test.reshape((len(x_test), np.prod(x_test.shape[1:]))) # 102, 14641
-
+#y_train = np.expand_dims(y_train, 2)
+#y_test = np.expand_dims(y_test, 2)
  # Autoencoder variables
 epochs = 50
-batch_size = 64
+batch_size = 16
 intermediate_dim = 124
 latent_dim = 2
 n_y = y_train.shape[1] # 2
@@ -138,15 +139,18 @@ outputs = decoder(encoder([encoder_inputs, label])[2])
 cvae = keras.Model([encoder_inputs, label], outputs, name='cvae')
 
 # use a custom loss function, this includes a KL divergence regularisation term which ensures that z is close to normal (0 mean, 1 sd)
+
 reconstruction_loss = keras.losses.binary_crossentropy(encoder_inputs, outputs)
 reconstruction_loss *= origin_dim
+reconstruction_loss = K.mean(reconstruction_loss) # mean to avoid incompatible shape error
 kl_loss = 1 + z_log_sigma - K.square(z_mean) - K.exp(z_log_sigma)
 kl_loss = K.sum(kl_loss, axis=-1)
 kl_loss *= -0.5
+# mean was worse
 cvae_loss = reconstruction_loss + kl_loss
+# does this just show up as loss?
 cvae.add_loss(cvae_loss)
 cvae.compile(optimizer='adam',)
-
 
 # Tensorboard
 from keras.callbacks import TensorBoard
