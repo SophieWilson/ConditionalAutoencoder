@@ -1,3 +1,4 @@
+
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
@@ -42,7 +43,7 @@ for i in range(num_subjs):
     nii_path = row['wp0']
     nii = nib.load(nii_path)
     nii = nii.get_fdata()
-    nii = nii[:, 78:80, :]
+    nii = nii[:, 78:88, :]
     labels.append(row['STUDYGROUP'])
     for j in range(nii.shape[1]):
         niis.append((nii[:,j,:]))
@@ -66,21 +67,17 @@ images = temp # dim now 5*2*124*124 # could replace temp with images
 
 # test train split (no labels for vae)
 from sklearn.model_selection import train_test_split
-x_train,x_test,y_train,y_test = train_test_split(images, labels, test_size=0.2, random_state=13)
-y_train = to_categorical(y_train) # tuple 10,000 * 10
-y_test = to_categorical(y_test) # tuple 10,000 * 10
+x_train,x_test,y_train,y_test = train_test_split(images, labels, test_size=0.2, random_state=13, stratify = labels)
+y_train = to_categorical(y_train) # tuple num_patients * num_labels
+y_test = to_categorical(y_test) # tuple num_patients * num_labels
 print(y_test.shape, y_train.shape)
-#x_train = x_train.astype('float32') / 255 # 408, 121, 121
-#x_test = x_test.astype('float32') / 255 # 102, 121, 121
-#x_train = x_train.reshape((len(x_train), np.prod(x_train.shape[1:]))) # 408, 14641
-#x_test = x_test.reshape((len(x_test), np.prod(x_test.shape[1:]))) # 102, 14641
-#y_train = np.expand_dims(y_train, 2)
+
 #y_test = np.expand_dims(y_test, 2)
  # Autoencoder variables
-epochs = 50
-batch_size = 16
+epochs = 500
+batch_size = 8
 intermediate_dim = 124
-latent_dim = 2
+latent_dim = 100
 n_y = y_train.shape[1] # 2
 n_x = x_train.shape[1] # 784
 n_z = 2
@@ -121,10 +118,10 @@ encoder = keras.Model([encoder_inputs, label], [z_mean, z_log_sigma, z_label], n
 encoder.summary()
 
 #### Make the decoder, takes the latent keras
-latent_inputs = keras.Input(shape=(7,))
+latent_inputs = keras.Input(shape=(105,))
 #x = layers.Dense(4, activation='relu')(latent_inputs)
-x =  layers.Dense(62*62*8, activation='relu')(latent_inputs)
-x = layers.Reshape((1, 62, 62, 8))(x)
+x =  layers.Dense(5*62*62*8, activation='relu')(latent_inputs)
+x = layers.Reshape((5, 62, 62, 8))(x)
 x = layers.Conv3DTranspose(8, (3, 3, 3), activation="relu", strides=2, padding="same")(x)
 x = layers.Conv3DTranspose(16, (3, 3, 3), activation="relu", padding="same")(x)
 x = layers.Conv3DTranspose(32, (3, 3, 3), activation="relu",  padding="same")(x)
@@ -168,8 +165,8 @@ history = cvae.fit([x_train, y_train], x_train, epochs=epochs, batch_size=batch_
 #from CVAEplots import plot_clusters
 #plot_clusters(encoder, x_test, y_test, plot_labels_test, batch_size)
 
-from CVAEplots import reconstruction_plot
-reconstruction_plot(x_test, y_test, cvae)
+from CVAE_3Dplots import reconstruction_plot
+reconstruction_plot(x_test, y_test, cvae, slice=2)
 
 #from CVAEplots import lossplot
 #lossplot(history)
@@ -188,7 +185,7 @@ reconstruction_plot(x_test, y_test, cvae)
 # setting fake label
 label = np.repeat(2, len(y_test))
 label_fake = to_categorical(label, num_classes=3)
-reconstruction_plot(x_test, label_fake, cvae)
+reconstruction_plot(x_test, label_fake, cvae, slice= 10)
 ###############################################################
 
 
