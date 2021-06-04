@@ -1,8 +1,5 @@
 
-import numpy as np
 import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
     try:
@@ -15,7 +12,9 @@ if gpus:
         # Memory growth must be set before GPUs have been initialized
         print(e)
 
-
+import numpy as np
+from tensorflow import keras
+from tensorflow.keras import layers
 from keras.utils import to_categorical
 from keras.layers.merge import concatenate
 import matplotlib.pyplot as plt
@@ -35,9 +34,10 @@ mri_types =['wp0', # whole brain
             'rp2'] # wm mask
 
 niis = []
-num_subjs = 500 # max 698
 labels = []
+num_subjs = 100 # max 698
 
+# Read in MRI image stacks
 for i in range(num_subjs):
     row = filepath_df.iloc[i]
     nii_path = row['wp0']
@@ -53,7 +53,6 @@ depth = len(nii[2])
 
 images = np.asarray(niis) # shape num_subjs*121*121
 # reshape to matrix in able to feed into network
-print('55', images.shape)
 images = images.reshape(-1, depth, 121, 121) # num_subjs,depth,121,121,
 ### min-max normalisation to rescale between 1 and 0 to improve accuracy
 m = np.max(images)
@@ -62,28 +61,25 @@ images = (images - mi) / (m - mi)
 ## Pad images with zeros at boundaries so the dimenson is even and easier to downsample images by two while passing through model. Add in three rows and columns to make dim 176*176
 temp = np.zeros([num_subjs, depth,124,124])
 temp[:,:,3:,3:,] = images
-print(images.shape)
 images = temp # dim now 5*2*124*124 # could replace temp with images 
 
 # test train split (no labels for vae)
 from sklearn.model_selection import train_test_split
 x_train,x_test,y_train,y_test = train_test_split(images, labels, test_size=0.2, random_state=13, stratify = labels)
-y_train = to_categorical(y_train) # tuple num_patients * num_labels
+y_train = to_categorical(y_train) # tuple num_patients * num_labels convert to onehot
 y_test = to_categorical(y_test) # tuple num_patients * num_labels
-print(y_test.shape, y_train.shape)
 
-#y_test = np.expand_dims(y_test, 2)
  # Autoencoder variables
 epochs = 500
 batch_size = 8
-intermediate_dim = 124
+#intermediate_dim = 124
 latent_dim = 100
 n_y = y_train.shape[1] # 2
 n_x = x_train.shape[1] # 784
-n_z = 2
+n_z = 2 # depth?
 X, y = 124, 124 
 inchannel = 1
-origin_dim = 28*28
+origin_dim = 28*28 # why is this set
 
 # Make a sampling layer, this maps the MNIST digit to latent-space triplet (z_mean, z_log_var, z), this is how the bottleneck is displayed. 
 from keras import backend as K
@@ -93,33 +89,30 @@ def sampling(args):
     epsilon = K.random_normal(shape=(K.shape(z_mean)[0], latent_dim), mean = 0., stddev=0.1)
     return z_mean + K.exp(z_log_sigma) * epsilon
 
-# Set inputs
+# Build the model
 from tensorflow.keras.layers import Input, BatchNormalization, Conv3D, Dense, Flatten, Lambda, Reshape, Conv3DTranspose
-
-label = keras.Input(shape=(n_y, ))
+# Encoder
+label = keras.Input(shape=(n_y, )) # shape of length y_train
 encoder_inputs = keras.Input(shape=(depth, X, y, inchannel)) # it will add a None layer as batch size
-
-x = layers.Conv3D(32, (3, 3, 3), activation="relu", padding="same")(encoder_inputs)
-x = layers.MaxPooling3D(pool_size=(2, 2, 2))(x) 
+x = layers.Conv3D(32, (3, 3, 3), activation="relu", padding="same")(encoder_inputs) # relu turns negative values to 0
+x = layers.MaxPooling3D(pool_size=(2, 2, 2))(x) # max pooling 
 x = layers.Conv3D(64, (3, 3, 3), activation="relu",  padding="same")(x)
 #x = layers.MaxPooling3D(pool_size=(2, 2, 2))(x) 
 x = layers.Conv3D(32, (3, 3, 3), activation="relu",  padding="same")(x)
 #x = layers.MaxPooling3D(pool_size=(2, 2, 2))(x) 
 x = layers.Conv3D(16, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.Conv3D(8, (3, 3, 3), activation="relu",  padding="same")(x)
-x = layers.Flatten()(x)
-#x = layers.Dense(16, activation="relu")(x)
+x = layers.Flatten()(x) # to feed into sampling function
 z_mean = layers.Dense(latent_dim, name="z_mean")(x)
 z_log_sigma = layers.Dense(latent_dim, name="z_log_var")(x)
 z = layers.Lambda(sampling)([z_mean, z_log_sigma])
-z_label = concatenate([z, label])
+z_label = concatenate([z, label]) 
 ## initiating the encoder, it ouputs the latent dim dimensions
 encoder = keras.Model([encoder_inputs, label], [z_mean, z_log_sigma, z_label], name="encoder")
 encoder.summary()
 
 #### Make the decoder, takes the latent keras
-latent_inputs = keras.Input(shape=(105,))
-#x = layers.Dense(4, activation='relu')(latent_inputs)
+latent_inputs = keras.Input(shape=(105,)) # changes based on depth 
 x =  layers.Dense(5*62*62*8, activation='relu')(latent_inputs)
 x = layers.Reshape((5, 62, 62, 8))(x)
 x = layers.Conv3DTranspose(8, (3, 3, 3), activation="relu", strides=2, padding="same")(x)
@@ -131,21 +124,20 @@ decoder_outputs = layers.Conv3DTranspose(1, 3, activation="sigmoid", padding="sa
 decoder = keras.Model(latent_inputs, decoder_outputs, name="decoder")
 decoder.summary()
 
-# Instantiate and fit VAE model 
+# Instantiate and fit VAE model, outputs only z_label
 outputs = decoder(encoder([encoder_inputs, label])[2])
 cvae = keras.Model([encoder_inputs, label], outputs, name='cvae')
 
 # use a custom loss function, this includes a KL divergence regularisation term which ensures that z is close to normal (0 mean, 1 sd)
-
 reconstruction_loss = keras.losses.binary_crossentropy(encoder_inputs, outputs)
 reconstruction_loss *= origin_dim
 reconstruction_loss = K.mean(reconstruction_loss) # mean to avoid incompatible shape error
 kl_loss = 1 + z_log_sigma - K.square(z_mean) - K.exp(z_log_sigma)
 kl_loss = K.sum(kl_loss, axis=-1)
 kl_loss *= -0.5
-# mean was worse
-cvae_loss = reconstruction_loss + kl_loss
-# does this just show up as loss?
+cvae_loss = reconstruction_loss + kl_loss # mean was worse
+
+# Add loss and compile cvae model
 cvae.add_loss(cvae_loss)
 cvae.compile(optimizer='adam',)
 
@@ -184,7 +176,7 @@ reconstruction_plot(x_test, y_test, cvae, slice=2)
 # Plotting digits as wrong labels 
 # setting fake label
 label = np.repeat(2, len(y_test))
-label_fake = to_categorical(label, num_classes=3)
+label_fake = to_categorical(label, num_classes=depth)
 reconstruction_plot(x_test, label_fake, cvae, slice= 10)
 ###############################################################
 
