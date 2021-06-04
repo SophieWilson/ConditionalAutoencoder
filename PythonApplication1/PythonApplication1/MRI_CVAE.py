@@ -48,20 +48,37 @@ for i in range(num_subjs):
     for j in range(nii.shape[1]):
         niis.append((nii[:,j,:]))
         
-
 depth = len(nii[2])
 
-images = np.asarray(niis) # shape num_subjs*121*121
+# Prepare to crop images
+def crop_center(img,cropx,cropy):
+    y,x = img.shape
+    startx = x//2-(cropx//2)
+    starty = y//2-(cropy//2)    
+    return img[starty:starty+cropy,startx:startx+cropx]
+# crop images in niis list
+images = []
+for i in range(len(niis)):
+    img = niis[i]
+    img = crop_center(img, 96, 96)
+    images.append(img)
+
+images = np.asarray(images) # shape num_subjs*121*121
 # reshape to matrix in able to feed into network
-images = images.reshape(-1, depth, 121, 121) # num_subjs,depth,121,121,
+images = images.reshape(-1, depth, 96, 96) # num_subjs,depth,121,121,
+
 ### min-max normalisation to rescale between 1 and 0 to improve accuracy
 m = np.max(images)
 mi = np.min(images) 
 images = (images - mi) / (m - mi)
+
+#from CVAE_3Dplots import plot_slices
+#plot_slices(images)
+
 ## Pad images with zeros at boundaries so the dimenson is even and easier to downsample images by two while passing through model. Add in three rows and columns to make dim 176*176
-temp = np.zeros([num_subjs, depth,124,124])
-temp[:,:,3:,3:,] = images
-images = temp # dim now 5*2*124*124 # could replace temp with images 
+#temp = np.zeros([num_subjs, depth,124,124])
+#temp[:,:,3:,3:,] = images
+#images = temp # dim now 5*2*124*124 # could replace temp with images 
 
 # test train split (no labels for vae)
 from sklearn.model_selection import train_test_split
@@ -71,13 +88,13 @@ y_test = to_categorical(y_test) # tuple num_patients * num_labels
 
  # Autoencoder variables
 epochs = 500
-batch_size = 8
+batch_size = 32
 #intermediate_dim = 124
 latent_dim = 100
 n_y = y_train.shape[1] # 2
 n_x = x_train.shape[1] # 784
 n_z = 2 # depth?
-X, y = 124, 124 
+X, y = len(images[0][0][0]), len(images[0][0][0]) # should be 96, 96 
 inchannel = 1
 origin_dim = 28*28 # why is this set
 
@@ -113,8 +130,8 @@ encoder.summary()
 
 #### Make the decoder, takes the latent keras
 latent_inputs = keras.Input(shape=(105,)) # changes based on depth 
-x =  layers.Dense(5*62*62*8, activation='relu')(latent_inputs)
-x = layers.Reshape((5, 62, 62, 8))(x)
+x =  layers.Dense(5*48*48*8, activation='relu')(latent_inputs)
+x = layers.Reshape((5, 48, 48, 8))(x)
 x = layers.Conv3DTranspose(8, (3, 3, 3), activation="relu", strides=2, padding="same")(x)
 x = layers.Conv3DTranspose(16, (3, 3, 3), activation="relu", padding="same")(x)
 x = layers.Conv3DTranspose(32, (3, 3, 3), activation="relu",  padding="same")(x)
@@ -148,7 +165,7 @@ log_dir = "C:/Users/Mischa/sophie/MRI_CVAE" + datetime.datetime.now().strftime("
 tensorboard_callback = TensorBoard(log_dir=log_dir)
 
 # Adding early stopping
-es_callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=6)
+es_callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
 
 # fit the data 
 history = cvae.fit([x_train, y_train], x_train, epochs=epochs, batch_size=batch_size, validation_data = ([x_test, y_test], x_test), verbose = 2, callbacks=[tensorboard_callback, es_callback])
@@ -175,9 +192,9 @@ reconstruction_plot(x_test, y_test, cvae, slice=2)
 
 # Plotting digits as wrong labels 
 # setting fake label
-label = np.repeat(2, len(y_test))
-label_fake = to_categorical(label, num_classes=depth)
-reconstruction_plot(x_test, label_fake, cvae, slice= 10)
+#label = np.repeat(2, len(y_test))
+#label_fake = to_categorical(label, num_classes=depth)
+#reconstruction_plot(x_test, label_fake, cvae, slice= 10)
 ###############################################################
 
 
