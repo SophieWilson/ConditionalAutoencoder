@@ -35,7 +35,7 @@ mri_types =['wp0', # whole brain
 
 niis = []
 labels = []
-num_subjs = 100 # max 698
+num_subjs = 50 # max 698
 
 # Read in MRI image stacks
 for i in range(num_subjs):
@@ -43,8 +43,8 @@ for i in range(num_subjs):
     nii_path = row['wp0']
     nii = nib.load(nii_path)
     nii = nii.get_fdata()
-    nii = nii[:, 78:88, :]
-    labels.append(row['STUDYGROUP'])
+    nii = nii[:, 76:80, :]
+    labels.append(row['SEX_T0'])
     for j in range(nii.shape[1]):
         niis.append((nii[:,j,:]))
         
@@ -87,14 +87,14 @@ y_train = to_categorical(y_train) # tuple num_patients * num_labels convert to o
 y_test = to_categorical(y_test) # tuple num_patients * num_labels
 
  # Autoencoder variables
-epochs = 500
-batch_size = 32
+epochs = 5
+batch_size = 16
 #intermediate_dim = 124
-latent_dim = 100
+latent_dim = 256
 n_y = y_train.shape[1] # 2
 n_x = x_train.shape[1] # 784
 n_z = 2 # depth?
-X, y = len(images[0][0][0]), len(images[0][0][0]) # should be 96, 96 
+X, y = len(images[0][0][0]), len(images[0][0][0]) # should be 96, 96 messy fix though
 inchannel = 1
 origin_dim = 28*28 # why is this set
 
@@ -114,28 +114,30 @@ encoder_inputs = keras.Input(shape=(depth, X, y, inchannel)) # it will add a Non
 x = layers.Conv3D(32, (3, 3, 3), activation="relu", padding="same")(encoder_inputs) # relu turns negative values to 0
 x = layers.MaxPooling3D(pool_size=(2, 2, 2))(x) # max pooling 
 x = layers.Conv3D(64, (3, 3, 3), activation="relu",  padding="same")(x)
-#x = layers.MaxPooling3D(pool_size=(2, 2, 2))(x) 
+x = layers.MaxPooling3D(pool_size=(2, 2, 2), padding ='same')(x) 
 x = layers.Conv3D(32, (3, 3, 3), activation="relu",  padding="same")(x)
-#x = layers.MaxPooling3D(pool_size=(2, 2, 2))(x) 
+x = layers.MaxPooling3D(pool_size=(2, 2, 2), padding='same')(x) 
 x = layers.Conv3D(16, (3, 3, 3), activation="relu",  padding="same")(x)
-x = layers.Conv3D(8, (3, 3, 3), activation="relu",  padding="same")(x)
+#x = layers.Conv3D(8, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.Flatten()(x) # to feed into sampling function
 z_mean = layers.Dense(latent_dim, name="z_mean")(x)
 z_log_sigma = layers.Dense(latent_dim, name="z_log_var")(x)
-z = layers.Lambda(sampling)([z_mean, z_log_sigma])
-z_label = concatenate([z, label]) 
+z = layers.Lambda(sampling, name='z')([z_mean, z_log_sigma])
+z_label = concatenate([z, label], name='encoded') 
 ## initiating the encoder, it ouputs the latent dim dimensions
 encoder = keras.Model([encoder_inputs, label], [z_mean, z_log_sigma, z_label], name="encoder")
 encoder.summary()
-
 #### Make the decoder, takes the latent keras
-latent_inputs = keras.Input(shape=(105,)) # changes based on depth 
-x =  layers.Dense(5*48*48*8, activation='relu')(latent_inputs)
-x = layers.Reshape((5, 48, 48, 8))(x)
-x = layers.Conv3DTranspose(8, (3, 3, 3), activation="relu", strides=2, padding="same")(x)
+latent_inputs = keras.Input(shape=(latent_dim + n_y),) # changes based on depth 
+x =  layers.Dense(1*12*12*16, activation='relu')(latent_inputs)
+x = layers.Reshape((1, 12, 12, 16))(x)
+#x = layers.Conv3DTranspose(8, (3, 3, 3), activation="relu", strides=2, padding="same")(x)
 x = layers.Conv3DTranspose(16, (3, 3, 3), activation="relu", padding="same")(x)
+x = layers.UpSampling3D((2,2,2))(x)
 x = layers.Conv3DTranspose(32, (3, 3, 3), activation="relu",  padding="same")(x)
+x = layers.UpSampling3D((2,2,2))(x)
 x = layers.Conv3DTranspose(64, (3, 3, 3), activation="relu",  padding="same")(x)
+x = layers.UpSampling3D((1,2,2))(x)
 decoder_outputs = layers.Conv3DTranspose(1, 3, activation="sigmoid", padding="same")(x)
 # Initiate decoder
 decoder = keras.Model(latent_inputs, decoder_outputs, name="decoder")
@@ -144,6 +146,7 @@ decoder.summary()
 # Instantiate and fit VAE model, outputs only z_label
 outputs = decoder(encoder([encoder_inputs, label])[2])
 cvae = keras.Model([encoder_inputs, label], outputs, name='cvae')
+cvae.summary()
 
 # use a custom loss function, this includes a KL divergence regularisation term which ensures that z is close to normal (0 mean, 1 sd)
 reconstruction_loss = keras.losses.binary_crossentropy(encoder_inputs, outputs)
@@ -170,6 +173,28 @@ es_callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
 # fit the data 
 history = cvae.fit([x_train, y_train], x_train, epochs=epochs, batch_size=batch_size, validation_data = ([x_test, y_test], x_test), verbose = 2, callbacks=[tensorboard_callback, es_callback])
 
+
+# This will extract all layers outputs from the model
+#extractor = keras.Model(inputs = cvae.inputs, outputs=[layer.output for
+#layer in cvae.layers])
+#extractor = keras.Model([x_train, y_train])
+
+# This will get one named layer from the model
+layer = 'z'
+intermediate_layer_model = keras.Model(inputs=[cvae.inputs], outputs=[cvae.get_layer('encoder').get_layer(layer).get_output_at(0)])
+intermediate_output = intermediate_layer_model.predict([x_train, y_train]) # intermediate output is label, 1503 dense, rehsape to 
+print(len(intermediate_output))
+
+#for i in range(1, n+1):
+#    # display reconstruction learning
+#    ax = plt.subplot(1, n, i)
+#    plt.imshow(intermediate_output[i].reshape((7, 7*8)).T)
+#    plt.gray()
+#    ax.get_xaxis().set_visible(False)
+#    ax.get_yaxis().set_visible(False)
+#plt.show()
+
+
 ## Plots
 #from CVAEplots import plot_clusters
 #plot_clusters(encoder, x_test, y_test, plot_labels_test, batch_size)
@@ -177,6 +202,15 @@ history = cvae.fit([x_train, y_train], x_train, epochs=epochs, batch_size=batch_
 from CVAE_3Dplots import reconstruction_plot
 reconstruction_plot(x_test, y_test, cvae, slice=2)
 
+# Plotting digits as wrong labels 
+# prbably female 2
+label = np.repeat(2, len(y_test))
+label_fake = to_categorical(label, num_classes=len(y_test[0]))
+reconstruction_plot(x_test, label_fake, cvae, slice= 2)
+# probably male 1
+label = np.repeat(1, len(y_test))
+label_fake = to_categorical(label, num_classes=len(y_test[0]))
+reconstruction_plot(x_test, label_fake, cvae, slice= 2)
 #from CVAEplots import lossplot
 #lossplot(history)
 
@@ -190,11 +224,7 @@ reconstruction_plot(x_test, y_test, cvae, slice=2)
 #plot_y_axis_change(1, 10, 1.5, decoder)
 #plot_x_axis_change(1, 10, 1.5, decoder)
 
-# Plotting digits as wrong labels 
-# setting fake label
-#label = np.repeat(2, len(y_test))
-#label_fake = to_categorical(label, num_classes=depth)
-#reconstruction_plot(x_test, label_fake, cvae, slice= 10)
+
 ###############################################################
 
 
