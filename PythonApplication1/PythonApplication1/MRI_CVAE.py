@@ -35,7 +35,7 @@ mri_types =['wp0', # whole brain
 
 niis = []
 labels = []
-num_subjs = 50 # max 698
+num_subjs = 698 # max 698
 
 # Read in MRI image stacks
 for i in range(num_subjs):
@@ -44,7 +44,7 @@ for i in range(num_subjs):
     nii = nib.load(nii_path)
     nii = nii.get_fdata()
     nii = nii[:, 76:80, :]
-    labels.append(row['SEX_T0'])
+    labels.append(row['STUDYGROUP'])
     for j in range(nii.shape[1]):
         niis.append((nii[:,j,:]))
         
@@ -83,11 +83,12 @@ images = (images - mi) / (m - mi)
 # test train split (no labels for vae)
 from sklearn.model_selection import train_test_split
 x_train,x_test,y_train,y_test = train_test_split(images, labels, test_size=0.2, random_state=13, stratify = labels)
+train_label, test_label = y_train, y_test
 y_train = to_categorical(y_train) # tuple num_patients * num_labels convert to onehot
 y_test = to_categorical(y_test) # tuple num_patients * num_labels
 
  # Autoencoder variables
-epochs = 5
+epochs = 100
 batch_size = 16
 #intermediate_dim = 124
 latent_dim = 256
@@ -107,17 +108,19 @@ def sampling(args):
     return z_mean + K.exp(z_log_sigma) * epsilon
 
 # Build the model
-from tensorflow.keras.layers import Input, BatchNormalization, Conv3D, Dense, Flatten, Lambda, Reshape, Conv3DTranspose
+from tensorflow.keras.layers import Input, BatchNormalization, Conv3D, Dense, Flatten, Lambda, Reshape, Conv3DTranspose, BatchNormalization
 # Encoder
 label = keras.Input(shape=(n_y, )) # shape of length y_train
 encoder_inputs = keras.Input(shape=(depth, X, y, inchannel)) # it will add a None layer as batch size
 x = layers.Conv3D(32, (3, 3, 3), activation="relu", padding="same")(encoder_inputs) # relu turns negative values to 0
+#x = layers.BatchNormalization()(x)
 x = layers.MaxPooling3D(pool_size=(2, 2, 2))(x) # max pooling 
 x = layers.Conv3D(64, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.MaxPooling3D(pool_size=(2, 2, 2), padding ='same')(x) 
-x = layers.Conv3D(32, (3, 3, 3), activation="relu",  padding="same")(x)
+x = layers.Conv3D(128, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.MaxPooling3D(pool_size=(2, 2, 2), padding='same')(x) 
-x = layers.Conv3D(16, (3, 3, 3), activation="relu",  padding="same")(x)
+#x = layers.BatchNormalization()(x)
+x = layers.Conv3D(256, (3, 3, 3), activation="relu",  padding="same")(x)
 #x = layers.Conv3D(8, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.Flatten()(x) # to feed into sampling function
 z_mean = layers.Dense(latent_dim, name="z_mean")(x)
@@ -125,18 +128,20 @@ z_log_sigma = layers.Dense(latent_dim, name="z_log_var")(x)
 z = layers.Lambda(sampling, name='z')([z_mean, z_log_sigma])
 z_label = concatenate([z, label], name='encoded') 
 ## initiating the encoder, it ouputs the latent dim dimensions
-encoder = keras.Model([encoder_inputs, label], [z_mean, z_log_sigma, z_label], name="encoder")
+encoder = keras.Model([encoder_inputs, label], [z_mean, z_log_sigma, z_label, z], name="encoder")
 encoder.summary()
+
 #### Make the decoder, takes the latent keras
 latent_inputs = keras.Input(shape=(latent_dim + n_y),) # changes based on depth 
-x =  layers.Dense(1*12*12*16, activation='relu')(latent_inputs)
-x = layers.Reshape((1, 12, 12, 16))(x)
+x =  layers.Dense(1*12*12*256, activation='relu')(latent_inputs)
+x = layers.Reshape((1, 12, 12, 256))(x)
 #x = layers.Conv3DTranspose(8, (3, 3, 3), activation="relu", strides=2, padding="same")(x)
-x = layers.Conv3DTranspose(16, (3, 3, 3), activation="relu", padding="same")(x)
+x = layers.Conv3DTranspose(128, (3, 3, 3), activation="relu", padding="same")(x)
+x = layers.UpSampling3D((2,2,2))(x)
+#x = layers.BatchNormalization()(x)
+x = layers.Conv3DTranspose(64, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.UpSampling3D((2,2,2))(x)
 x = layers.Conv3DTranspose(32, (3, 3, 3), activation="relu",  padding="same")(x)
-x = layers.UpSampling3D((2,2,2))(x)
-x = layers.Conv3DTranspose(64, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.UpSampling3D((1,2,2))(x)
 decoder_outputs = layers.Conv3DTranspose(1, 3, activation="sigmoid", padding="same")(x)
 # Initiate decoder
@@ -159,7 +164,7 @@ cvae_loss = reconstruction_loss + kl_loss # mean was worse
 
 # Add loss and compile cvae model
 cvae.add_loss(cvae_loss)
-cvae.compile(optimizer='adam',)
+cvae.compile(optimizer='adam')
 
 # Tensorboard
 from keras.callbacks import TensorBoard
@@ -185,7 +190,62 @@ intermediate_layer_model = keras.Model(inputs=[cvae.inputs], outputs=[cvae.get_l
 intermediate_output = intermediate_layer_model.predict([x_train, y_train]) # intermediate output is label, 1503 dense, rehsape to 
 print(len(intermediate_output))
 
-#for i in range(1, n+1):
+
+def plot_scikit_lda(X, title):
+
+    ax = plt.subplot(111)
+    for label,marker,color in zip(
+        range(1,4),('v','^', 's', 'o'),('yellow','blue', 'red', 'green')):
+
+        plt.scatter(x=X[:,0][y == label],
+                    y=X[:,1][y == label] * -1, # flip the figure
+                    marker=marker,
+                    color=color,
+                    alpha=0.5,
+                    label = y)
+
+    plt.xlabel('LD1')
+    plt.ylabel('LD2')
+
+    leg = plt.legend(loc='upper right', fancybox=True)
+    leg.get_frame().set_alpha(0.5)
+    plt.title(title)
+
+    # hide axis ticks
+    plt.tick_params(axis="both", which="both", bottom="off", top="off",
+            labelbottom="on", left="off", right="off", labelleft="on")
+
+    # remove axis spines
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["bottom"].set_visible(False)
+    ax.spines["left"].set_visible(False)
+
+    plt.grid()
+    plt.tight_layout
+    plt.show()
+
+
+from CVAE_3Dplots import plot_clusters
+plot_clusters(encoder, x_test, y_test, test_label, batch_size = 16)
+plot_clusters(encoder, x_train, y_train, train_label, batch_size = 16)
+
+#plot_scikit_lda(x_lda, 'my plot')
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+x_train_encoded, _, _, _ = encoder.predict([x_train, y_train], batch_size=16)
+
+X_r_lda = LinearDiscriminantAnalysis().fit(x_train_encoded, train_label).transform(x_train_encoded)
+with plt.style.context('seaborn-talk'):
+    fig, axes = plt.subplots(1,figsize=[15,6])
+    colors = ['yellow','blue', 'red', 'green']
+    target_names = [0, 1, 2, 3]
+    for color, i, target_name in zip(colors, [0,1,2,3], target_names):
+        axes[0].scatter(X_r_lda[y == i, 0], X_r_lda[y == i, 1], alpha=.8, label=target_name, color=color)
+        
+
+ ###### PLOTS ###############
+
+ #for i in range(1, n+1):
 #    # display reconstruction learning
 #    ax = plt.subplot(1, n, i)
 #    plt.imshow(intermediate_output[i].reshape((7, 7*8)).T)
@@ -193,6 +253,7 @@ print(len(intermediate_output))
 #    ax.get_xaxis().set_visible(False)
 #    ax.get_yaxis().set_visible(False)
 #plt.show()
+
 
 
 ## Plots
