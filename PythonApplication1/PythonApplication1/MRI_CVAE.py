@@ -35,7 +35,7 @@ mri_types =['wp0', # whole brain
 
 niis = []
 labels = []
-num_subjs = 100 # max 698
+num_subjs =100 # max 698
 
 # Read in MRI image stacks
 for i in range(num_subjs):
@@ -88,7 +88,7 @@ y_train = to_categorical(y_train) # tuple num_patients * num_labels convert to o
 y_test = to_categorical(y_test) # tuple num_patients * num_labels
 
  # Autoencoder variables
-epochs = 10
+epochs = 20
 batch_size = 16
 #intermediate_dim = 124
 latent_dim = 256
@@ -190,24 +190,22 @@ intermediate_layer_model = keras.Model(inputs=[cvae.inputs], outputs=[cvae.get_l
 intermediate_output = intermediate_layer_model.predict([x_train, y_train]) # intermediate output is label, 1503 dense, rehsape to 
 print(len(intermediate_output))
 
-## Linear Discriminant analysis
+## Linear Discriminant analysis ##
 
 #plot_scikit_lda(x_lda, 'my plot')
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 z_mean_pred, z_sig, z_label_pred, z_pred = encoder.predict([x_train, y_train], batch_size=16)
 sklearn_lda = LinearDiscriminantAnalysis(n_components=2)
-train_label = np.array(train_label)
+y = np.array(train_label)
 z_pred = pd.DataFrame(z_pred)
-y = train_label
 X_lda_sklearn = sklearn_lda.fit_transform(z_pred, y)
-X_r_lda = LinearDiscriminantAnalysis().fit(z_pred, train_label).transform(z_pred)
-label_dict = {1: '1', 2: '2', 3:'3', 4:'4'}
+label_dict = {1: 'Healthy', 2: 'At risk of SCZ', 3:'Depression', 4:'SCZ'} # it breaks if you remove this, unsure why
 
 def plot_scikit_lda(X, title):
 
     ax = plt.subplot(111)
     for label,marker,color in zip(
-        range(1,5),('v','^', 's', 'o'),('yellow','blue', 'red', 'green')):
+        range(1,5),('v','^', 's', 'o'),('purple','blue', 'red', 'green')):
 
         plt.scatter(x=X[:,0][y == label],
                     y=X[:,1][y == label] * -1, # flip the figure
@@ -232,6 +230,13 @@ def plot_scikit_lda(X, title):
     ax.spines["right"].set_visible(False)
     ax.spines["bottom"].set_visible(False)
     ax.spines["left"].set_visible(False)
+
+    x1 = np.array([np.min(X[:,0], axis=0), np.max(X[:,0], axis=0)])
+
+    for i, c in enumerate(['purple','blue','red', 'green']):
+        b, w1, w2, w2 = sklearn_lda.intercept_[i], sklearn_lda.coef_[i][0], sklearn_lda.coef_[i][1], sklearn_lda.coef_[i][2]
+        y1 = -(b+x1*w1)/w2    
+        plt.plot(x1,y1,c=c)
 
     plt.grid()
     plt.tight_layout
@@ -267,11 +272,11 @@ reconstruction_plot(x_test, y_test, cvae, slice=2)
 # prbably female 2
 label = np.repeat(2, len(y_test))
 label_fake = to_categorical(label, num_classes=len(y_test[0]))
-reconstruction_plot(x_test, label_fake, cvae, slice= 2)
+#reconstruction_plot(x_test, label_fake, cvae, slice= 2)
 # probably male 1
 label = np.repeat(1, len(y_test))
 label_fake = to_categorical(label, num_classes=len(y_test[0]))
-reconstruction_plot(x_test, label_fake, cvae, slice= 2)
+#reconstruction_plot(x_test, label_fake, cvae, slice= 2)
 #from CVAEplots import lossplot
 #lossplot(history)
 
