@@ -35,7 +35,7 @@ mri_types =['wp0', # whole brain
 
 niis = []
 labels = []
-num_subjs = 698 # max 698
+num_subjs = 100 # max 698
 
 # Read in MRI image stacks
 for i in range(num_subjs):
@@ -88,7 +88,7 @@ y_train = to_categorical(y_train) # tuple num_patients * num_labels convert to o
 y_test = to_categorical(y_test) # tuple num_patients * num_labels
 
  # Autoencoder variables
-epochs = 100
+epochs = 10
 batch_size = 16
 #intermediate_dim = 124
 latent_dim = 256
@@ -190,19 +190,31 @@ intermediate_layer_model = keras.Model(inputs=[cvae.inputs], outputs=[cvae.get_l
 intermediate_output = intermediate_layer_model.predict([x_train, y_train]) # intermediate output is label, 1503 dense, rehsape to 
 print(len(intermediate_output))
 
+## Linear Discriminant analysis
+
+#plot_scikit_lda(x_lda, 'my plot')
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+z_mean_pred, z_sig, z_label_pred, z_pred = encoder.predict([x_train, y_train], batch_size=16)
+sklearn_lda = LinearDiscriminantAnalysis(n_components=2)
+train_label = np.array(train_label)
+z_pred = pd.DataFrame(z_pred)
+y = train_label
+X_lda_sklearn = sklearn_lda.fit_transform(z_pred, y)
+X_r_lda = LinearDiscriminantAnalysis().fit(z_pred, train_label).transform(z_pred)
+label_dict = {1: '1', 2: '2', 3:'3', 4:'4'}
 
 def plot_scikit_lda(X, title):
 
     ax = plt.subplot(111)
     for label,marker,color in zip(
-        range(1,4),('v','^', 's', 'o'),('yellow','blue', 'red', 'green')):
+        range(1,5),('v','^', 's', 'o'),('yellow','blue', 'red', 'green')):
 
         plt.scatter(x=X[:,0][y == label],
                     y=X[:,1][y == label] * -1, # flip the figure
                     marker=marker,
                     color=color,
                     alpha=0.5,
-                    label = y)
+                    label = label_dict[label])
 
     plt.xlabel('LD1')
     plt.ylabel('LD2')
@@ -226,25 +238,11 @@ def plot_scikit_lda(X, title):
     plt.show()
 
 
-from CVAE_3Dplots import plot_clusters
-plot_clusters(encoder, x_test, y_test, test_label, batch_size = 16)
-plot_clusters(encoder, x_train, y_train, train_label, batch_size = 16)
+plot_scikit_lda(X_lda_sklearn, 'sd')
 
-#plot_scikit_lda(x_lda, 'my plot')
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-x_train_encoded, _, _, _ = encoder.predict([x_train, y_train], batch_size=16)
-
-X_r_lda = LinearDiscriminantAnalysis().fit(x_train_encoded, train_label).transform(x_train_encoded)
-with plt.style.context('seaborn-talk'):
-    fig, axes = plt.subplots(1,figsize=[15,6])
-    colors = ['yellow','blue', 'red', 'green']
-    target_names = [0, 1, 2, 3]
-    for color, i, target_name in zip(colors, [0,1,2,3], target_names):
-        axes[0].scatter(X_r_lda[y == i, 0], X_r_lda[y == i, 1], alpha=.8, label=target_name, color=color)
-        
 
  ###### PLOTS ###############
-
+ #plt.scatter(x=X_lda_sklearn[:,0][y ==1], y=X_lda_sklearn[:,1][y==1] * -1)
  #for i in range(1, n+1):
 #    # display reconstruction learning
 #    ax = plt.subplot(1, n, i)
@@ -254,7 +252,9 @@ with plt.style.context('seaborn-talk'):
 #    ax.get_yaxis().set_visible(False)
 #plt.show()
 
-
+from CVAE_3Dplots import plot_clusters
+plot_clusters(encoder, x_test, y_test, test_label, batch_size = 16)
+plot_clusters(encoder, x_train, y_train, train_label, batch_size = 16)
 
 ## Plots
 #from CVAEplots import plot_clusters
