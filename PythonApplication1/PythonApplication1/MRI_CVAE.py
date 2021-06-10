@@ -98,6 +98,7 @@ X, y = len(images[0][0][0]), len(images[0][0][0]) # should be 96, 96 messy fix t
 inchannel = 1
 origin_dim = 28*28 # why is this set
 
+
 # Make a sampling layer, this maps the MNIST digit to latent-space triplet (z_mean, z_log_var, z), this is how the bottleneck is displayed. 
 from keras import backend as K
 def sampling(args):
@@ -189,30 +190,35 @@ intermediate_layer_model = keras.Model(inputs=[cvae.inputs], outputs=[cvae.get_l
 intermediate_output = intermediate_layer_model.predict([x_train, y_train]) # intermediate output is label, 1503 dense, reshape to 
 
 
-## Linear Discriminant analysis ##
+####### Linear Discriminant analysis ##
+label_dict = {1: 'Healthy', 2: 'At risk of SCZ', 3:'Depression', 4:'SCZ'}
 
 #plot_scikit_lda(x_lda, 'my plot')
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-z_mean_pred, z_sig, z_label_pred, z_pred = encoder.predict([x_train, y_train], batch_size=16)
-sklearn_lda = LinearDiscriminantAnalysis()
-y = np.array(train_label)
-z_pred = pd.DataFrame(z_pred)
-X_lda_sklearn = sklearn_lda.fit_transform(z_pred, y)
-label_dict = {1: 'Healthy', 2: 'At risk of SCZ', 3:'Depression', 4:'SCZ'} # it breaks if you remove this, unsure why
+def LDA(encoder, train_label, label_dict):
+    from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+    z_mean_pred, z_sig, z_label_pred, z_pred = encoder.predict([x_train, y_train], batch_size=16)
+    sklearn_lda = LinearDiscriminantAnalysis()
+    y = np.array(train_label)
+    z_pred = pd.DataFrame(z_pred)
+    X_lda = sklearn_lda.fit_transform(z_pred, y)
+    return X_lda
 
+X_lda = lda(encoder, train_label, label_dict)
 
 from CVAE_3Dplots import plot_lda_clusters
 plot_lda_cluster(X_lda_sklearn, 'LDA analysis of latent space train set')
 
 ### Making histogram of dimensions (3 dim as 4 groups)
-import seaborn as sns 
-df = pd.DataFrame(X_lda_sklearn)
-df['label'] = y
-sns.displot(df, x=df.iloc[:,0], hue='label', kind='kde', fill = True, palette='tab10').fig.suptitle('Dim 1, groups lda')
-sns.displot(df, x=df.iloc[:,1], hue='label', kind='kde', fill = True, palette='tab10').fig.suptitle('Dim 2, groups lda')
-sns.displot(df, x=df.iloc[:,2], hue= 'label',kind='kde', fill=True, palette='tab10').fig.suptitle('Dim3, groups lda')
+def lda_densityplot(X_lda, y):
+    import seaborn as sns 
+    df = pd.DataFrame(X_lda_sklearn)
+    df['label'] = y
+    for i in range(len(x_lda[0])):
+        plt.figure(i)
+        sns.displot(df, x=df.iloc[:,i], hue='label', kind='kde', fill = True, palette='tab10').fig.suptitle('Dimension ' + str(i+1) +' groups lda')
+    plt.show()
 
- ###### PLOTS ######################################################################################################
+lda_densityplot(X_lda, y)
 
 
 
