@@ -22,7 +22,6 @@ import pandas as pd
 import math
 import glob
 import nibabel as nib #reading MR images
-from sklearn.model_selection import train_test_split
 
 filepath_df = pd.read_csv('Z:/PRONIA_data/Tables/pronia_full_niftis.csv')
 
@@ -35,7 +34,7 @@ mri_types =['wp0', # whole brain
 
 niis = []
 labels = []
-num_subjs =100 # max 698
+num_subjs =690 # max 698
 
 # Read in MRI image stacks
 for i in range(num_subjs):
@@ -88,7 +87,7 @@ y_train = to_categorical(y_train) # tuple num_patients * num_labels convert to o
 y_test = to_categorical(y_test) # tuple num_patients * num_labels
 
  # Autoencoder variables
-epochs = 20
+epochs = 100
 batch_size = 16
 #intermediate_dim = 124
 latent_dim = 256
@@ -187,68 +186,38 @@ history = cvae.fit([x_train, y_train], x_train, epochs=epochs, batch_size=batch_
 # This will get one named layer from the model
 layer = 'z'
 intermediate_layer_model = keras.Model(inputs=[cvae.inputs], outputs=[cvae.get_layer('encoder').get_layer(layer).get_output_at(0)])
-intermediate_output = intermediate_layer_model.predict([x_train, y_train]) # intermediate output is label, 1503 dense, rehsape to 
-print(len(intermediate_output))
+intermediate_output = intermediate_layer_model.predict([x_train, y_train]) # intermediate output is label, 1503 dense, reshape to 
+
 
 ## Linear Discriminant analysis ##
 
 #plot_scikit_lda(x_lda, 'my plot')
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 z_mean_pred, z_sig, z_label_pred, z_pred = encoder.predict([x_train, y_train], batch_size=16)
-sklearn_lda = LinearDiscriminantAnalysis(n_components=2)
+sklearn_lda = LinearDiscriminantAnalysis()
 y = np.array(train_label)
 z_pred = pd.DataFrame(z_pred)
 X_lda_sklearn = sklearn_lda.fit_transform(z_pred, y)
 label_dict = {1: 'Healthy', 2: 'At risk of SCZ', 3:'Depression', 4:'SCZ'} # it breaks if you remove this, unsure why
 
-def plot_scikit_lda(X, title):
 
-    ax = plt.subplot(111)
-    for label,marker,color in zip(
-        range(1,5),('v','^', 's', 'o'),('purple','blue', 'red', 'green')):
+from CVAE_3Dplots import plot_lda_clusters
+plot_lda_cluster(X_lda_sklearn, 'LDA analysis of latent space train set')
 
-        plt.scatter(x=X[:,0][y == label],
-                    y=X[:,1][y == label] * -1, # flip the figure
-                    marker=marker,
-                    color=color,
-                    alpha=0.5,
-                    label = label_dict[label])
+### Making histogram of dimensions (3 dim as 4 groups)
+import seaborn as sns 
+df = pd.DataFrame(X_lda_sklearn)
+df['label'] = y
+sns.displot(df, x=df.iloc[:,0], hue='label', kind='kde', fill = True, palette='tab10').fig.suptitle('Dim 1, groups lda')
+sns.displot(df, x=df.iloc[:,1], hue='label', kind='kde', fill = True, palette='tab10').fig.suptitle('Dim 2, groups lda')
+sns.displot(df, x=df.iloc[:,2], hue= 'label',kind='kde', fill=True, palette='tab10').fig.suptitle('Dim3, groups lda')
 
-    plt.xlabel('LD1')
-    plt.ylabel('LD2')
-
-    leg = plt.legend(loc='upper right', fancybox=True)
-    leg.get_frame().set_alpha(0.5)
-    plt.title(title)
-
-    # hide axis ticks
-    plt.tick_params(axis="both", which="both", bottom="off", top="off",
-            labelbottom="on", left="off", right="off", labelleft="on")
-
-    # remove axis spines
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["bottom"].set_visible(False)
-    ax.spines["left"].set_visible(False)
-
-    x1 = np.array([np.min(X[:,0], axis=0), np.max(X[:,0], axis=0)])
-
-    for i, c in enumerate(['purple','blue','red', 'green']):
-        b, w1, w2, w2 = sklearn_lda.intercept_[i], sklearn_lda.coef_[i][0], sklearn_lda.coef_[i][1], sklearn_lda.coef_[i][2]
-        y1 = -(b+x1*w1)/w2    
-        plt.plot(x1,y1,c=c)
-
-    plt.grid()
-    plt.tight_layout
-    plt.show()
+ ###### PLOTS ######################################################################################################
 
 
-plot_scikit_lda(X_lda_sklearn, 'sd')
 
-
- ###### PLOTS ###############
  #plt.scatter(x=X_lda_sklearn[:,0][y ==1], y=X_lda_sklearn[:,1][y==1] * -1)
- #for i in range(1, n+1):
+# for i in range(1, n+1):
 #    # display reconstruction learning
 #    ax = plt.subplot(1, n, i)
 #    plt.imshow(intermediate_output[i].reshape((7, 7*8)).T)
@@ -292,11 +261,6 @@ label_fake = to_categorical(label, num_classes=len(y_test[0]))
 
 
 ###############################################################
-
-
-
-
-
 
 #for i in range(n_z+n_y):
 #	tmp = np.zeros((1,n_z+n_y))
