@@ -4,6 +4,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 import math
+import pandas as pd
 ## Plots
 ## All of the plotting functions for CVAE  models in one place as they're clogging up the actual script, example of how to call below each function ##
 ## These plots are adapted for 3D input, to show slices ##
@@ -232,7 +233,7 @@ def plot_y_axis_change(dig, sides, max_z, decoder):
 #label = np.repeat(7, 10000)
 #label_fake = to_categorical(label, num_classes=10)
 
-def plot_lda_cluster(X, title):
+def plot_lda_cluster(X, y, title, label_dict, sklearn_lda):
     ''' Plots LDA clusters within the subspace, LDA function must be run for this plot to work '''
     #X_lda = LDA(encoder, train_label, label_dict) # run the LDA analysis
     ax = plt.subplot(111)
@@ -273,7 +274,7 @@ def plot_lda_cluster(X, title):
     plt.show()
 
 ### Making histogram of dimensions (3 dim as 4 groups)
-def lda_densityplot(X_lda, y, label):#
+def lda_densityplot(X_lda, y, label, sklearn_lda):#
     ''' x_lda is lda analysis on encoder output, y is the label vector, label is the group description (STUDYGROUP, SEX etc.), this must be a string '''
     import seaborn as sns 
     df = pd.DataFrame(X_lda)
@@ -283,4 +284,3 @@ def lda_densityplot(X_lda, y, label):#
         sns.displot(df, x=df.iloc[:,i], hue='label', kind='kde', fill = True, palette='tab10').fig.suptitle('LDA Dimension ' + str(i+1) + ', ' + label + ', explained variance:' + str(round(sklearn_lda.explained_variance_ratio_[i], 2)))
     plt.show()
 
-sdfhdghgfns

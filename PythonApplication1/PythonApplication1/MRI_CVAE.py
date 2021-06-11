@@ -61,6 +61,7 @@ for i in range(len(niis)):
     img = niis[i]
     img = crop_center(img, 96, 96)
     images.append(img)
+    print(i)
 
 images = np.asarray(images) # shape num_subjs*121*121
 # reshape to matrix in able to feed into network
@@ -87,7 +88,7 @@ y_train = to_categorical(y_train) # tuple num_patients * num_labels convert to o
 y_test = to_categorical(y_test) # tuple num_patients * num_labels
 
  # Autoencoder variables
-epochs = 100
+epochs = 200
 batch_size = 16
 #intermediate_dim = 124
 latent_dim = 256
@@ -191,38 +192,26 @@ intermediate_output = intermediate_layer_model.predict([x_train, y_train]) # int
 
 
 ####### Linear Discriminant analysis ##
+
+
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+z_mean_pred, z_sig, z_label_pred, z_pred = encoder.predict([x_train, y_train], batch_size=16)
+sklearn_lda = LinearDiscriminantAnalysis()
+y = np.array(train_label)
+z_pred = pd.DataFrame(z_pred)
+X_lda = sklearn_lda.fit_transform(z_pred, y)
 label_dict = {1: 'Healthy', 2: 'At risk of SCZ', 3:'Depression', 4:'SCZ'}
 
-#plot_scikit_lda(x_lda, 'my plot')
-def LDA(encoder, train_label, label_dict):
-    from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-    z_mean_pred, z_sig, z_label_pred, z_pred = encoder.predict([x_train, y_train], batch_size=16)
-    sklearn_lda = LinearDiscriminantAnalysis()
-    y = np.array(train_label)
-    z_pred = pd.DataFrame(z_pred)
-    X_lda = sklearn_lda.fit_transform(z_pred, y)
-    return X_lda
 
-X_lda = lda(encoder, train_label, label_dict)
+from CVAE_3Dplots import plot_lda_cluster
+plot_lda_cluster(X_lda, y, 'LDA analysis of latent space train set', label_dict, sklearn_lda)
 
-from CVAE_3Dplots import plot_lda_clusters
-plot_lda_cluster(X_lda_sklearn, 'LDA analysis of latent space train set')
-
-### Making histogram of dimensions (3 dim as 4 groups)
-def lda_densityplot(X_lda, y):
-    import seaborn as sns 
-    df = pd.DataFrame(X_lda_sklearn)
-    df['label'] = y
-    for i in range(len(x_lda[0])):
-        plt.figure(i)
-        sns.displot(df, x=df.iloc[:,i], hue='label', kind='kde', fill = True, palette='tab10').fig.suptitle('Dimension ' + str(i+1) +' groups lda')
-    plt.show()
-
-lda_densityplot(X_lda, y)
+from CVAE_3Dplots import lda_densityplot
+lda_densityplot(X_lda, y, 'STUDYGROUP', sklearn_lda)
 
 
+## Plots ###########################################################################
 
- #plt.scatter(x=X_lda_sklearn[:,0][y ==1], y=X_lda_sklearn[:,1][y==1] * -1)
 # for i in range(1, n+1):
 #    # display reconstruction learning
 #    ax = plt.subplot(1, n, i)
@@ -236,22 +225,19 @@ from CVAE_3Dplots import plot_clusters
 plot_clusters(encoder, x_test, y_test, test_label, batch_size = 16)
 plot_clusters(encoder, x_train, y_train, train_label, batch_size = 16)
 
-## Plots
 #from CVAEplots import plot_clusters
 #plot_clusters(encoder, x_test, y_test, plot_labels_test, batch_size)
-
 from CVAE_3Dplots import reconstruction_plot
 reconstruction_plot(x_test, y_test, cvae, slice=2)
-
 # Plotting digits as wrong labels 
 # prbably female 2
-label = np.repeat(2, len(y_test))
+label = np.repeat(3, len(y_test))
 label_fake = to_categorical(label, num_classes=len(y_test[0]))
-#reconstruction_plot(x_test, label_fake, cvae, slice= 2)
+reconstruction_plot(x_test, label_fake, cvae, slice= 2)
 # probably male 1
-label = np.repeat(1, len(y_test))
+label = np.repeat(0, len(y_test))
 label_fake = to_categorical(label, num_classes=len(y_test[0]))
-#reconstruction_plot(x_test, label_fake, cvae, slice= 2)
+reconstruction_plot(x_test, label_fake, cvae, slice= 2)
 #from CVAEplots import lossplot
 #lossplot(history)
 
