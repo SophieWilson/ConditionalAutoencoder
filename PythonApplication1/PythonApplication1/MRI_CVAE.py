@@ -34,7 +34,7 @@ mri_types =['wp0', # whole brain
 
 niis = []
 labels = []
-num_subjs =690 # max 698
+num_subjs =100 # max 698
 
 # Read in MRI image stacks
 for i in range(num_subjs):
@@ -42,7 +42,7 @@ for i in range(num_subjs):
     nii_path = row['wp0']
     nii = nib.load(nii_path)
     nii = nii.get_fdata()
-    nii = nii[:, 76:80, :]
+    nii = nii[:, 76:92, :]
     labels.append(row['STUDYGROUP'])
     for j in range(nii.shape[1]):
         niis.append((nii[:,j,:]))
@@ -61,8 +61,7 @@ for i in range(len(niis)):
     img = niis[i]
     img = crop_center(img, 96, 96)
     images.append(img)
-    print(i)
-
+    
 images = np.asarray(images) # shape num_subjs*121*121
 # reshape to matrix in able to feed into network
 images = images.reshape(-1, depth, 96, 96) # num_subjs,depth,121,121,
@@ -82,14 +81,14 @@ images = (images - mi) / (m - mi)
 
 # test train split (no labels for vae)
 from sklearn.model_selection import train_test_split
-x_train,x_test,y_train,y_test = train_test_split(images, labels, test_size=0.2, random_state=13, stratify = labels)
+x_train,x_test,y_train,y_test = train_test_split(images, labels, test_size=0.3, random_state=13, stratify = labels)
 train_label, test_label = y_train, y_test
 y_train = to_categorical(y_train) # tuple num_patients * num_labels convert to onehot
 y_test = to_categorical(y_test) # tuple num_patients * num_labels
 
  # Autoencoder variables
-epochs = 200
-batch_size = 16
+epochs = 20
+batch_size = 4
 #intermediate_dim = 124
 latent_dim = 256
 n_y = y_train.shape[1] # 2
@@ -134,8 +133,8 @@ encoder.summary()
 
 #### Make the decoder, takes the latent keras
 latent_inputs = keras.Input(shape=(latent_dim + n_y),) # changes based on depth 
-x =  layers.Dense(1*12*12*256, activation='relu')(latent_inputs)
-x = layers.Reshape((1, 12, 12, 256))(x)
+x =  layers.Dense(2*12*12*256, activation='relu')(latent_inputs)
+x = layers.Reshape((2, 12, 12, 256))(x)
 #x = layers.Conv3DTranspose(8, (3, 3, 3), activation="relu", strides=2, padding="same")(x)
 x = layers.Conv3DTranspose(128, (3, 3, 3), activation="relu", padding="same")(x)
 x = layers.UpSampling3D((2,2,2))(x)
@@ -143,7 +142,7 @@ x = layers.UpSampling3D((2,2,2))(x)
 x = layers.Conv3DTranspose(64, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.UpSampling3D((2,2,2))(x)
 x = layers.Conv3DTranspose(32, (3, 3, 3), activation="relu",  padding="same")(x)
-x = layers.UpSampling3D((1,2,2))(x)
+x = layers.UpSampling3D((2,2,2))(x)
 decoder_outputs = layers.Conv3DTranspose(1, 3, activation="sigmoid", padding="same")(x)
 # Initiate decoder
 decoder = keras.Model(latent_inputs, decoder_outputs, name="decoder")
@@ -180,6 +179,7 @@ es_callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
 history = cvae.fit([x_train, y_train], x_train, epochs=epochs, batch_size=batch_size, validation_data = ([x_test, y_test], x_test), verbose = 2, callbacks=[tensorboard_callback, es_callback])
 
 
+
 # This will extract all layers outputs from the model
 #extractor = keras.Model(inputs = cvae.inputs, outputs=[layer.output for
 #layer in cvae.layers])
@@ -190,7 +190,30 @@ layer = 'z'
 intermediate_layer_model = keras.Model(inputs=[cvae.inputs], outputs=[cvae.get_layer('encoder').get_layer(layer).get_output_at(0)])
 intermediate_output = intermediate_layer_model.predict([x_train, y_train]) # intermediate output is label, 1503 dense, reshape to 
 
+def structural_sim_data(data):
+    from skimage.metrics import structural_similarity as ssim
+    results = []
+    for i in range(len(data)):
+        imageA = data[i]
+        for j in range(len(data)):
+            if (i == j):
+                continue
+            else:
+                imageB = data[j]
+                (score, diff) = ssim(imageA, imageB, full=True)
+                results.append((score))
+    return results
 
+x_test_results = structural_sim_data(x_test)
+
+prediction = cvae.predict([x_test, y_test])
+prediction = prediction[:,:,:,:,0]
+
+prediction_results = structural_sim_data(prediction)
+import seaborn as sns
+ax = sns.boxplot(data = [x_test_results, prediction_results])
+plt.show()
+print(statistcs.mean(x_test_results), statistics.mean(prediction_results))
 ####### Linear Discriminant analysis ##
 
 
@@ -240,6 +263,7 @@ label_fake = to_categorical(label, num_classes=len(y_test[0]))
 reconstruction_plot(x_test, label_fake, cvae, slice= 2)
 #from CVAEplots import lossplot
 #lossplot(history)
+
 
 #from CVAEplots import plot_latent_space
 #plot_latent_space(1, 1.5, 8, decoder)
