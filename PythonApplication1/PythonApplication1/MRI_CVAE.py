@@ -34,7 +34,7 @@ mri_types =['wp0', # whole brain
 
 niis = []
 labels = []
-num_subjs =100 # max 698
+num_subjs =200 # max 698
 
 # Read in MRI image stacks
 for i in range(num_subjs):
@@ -87,7 +87,7 @@ y_train = to_categorical(y_train) # tuple num_patients * num_labels convert to o
 y_test = to_categorical(y_test) # tuple num_patients * num_labels
 
  # Autoencoder variables
-epochs = 20
+epochs = 26
 batch_size = 4
 #intermediate_dim = 124
 latent_dim = 256
@@ -108,20 +108,20 @@ def sampling(args):
     return z_mean + K.exp(z_log_sigma) * epsilon
 
 # Build the model
-from tensorflow.keras.layers import Input, BatchNormalization, Conv3D, Dense, Flatten, Lambda, Reshape, Conv3DTranspose, BatchNormalization
+from tensorflow.keras.layers import Input, BatchNormalization, Conv3D, Dense, Flatten, Lambda, Reshape, Conv3DTranspose, BatchNormalization, SpatialDropout3D
 # Encoder
 label = keras.Input(shape=(n_y, )) # shape of length y_train
 encoder_inputs = keras.Input(shape=(depth, X, y, inchannel)) # it will add a None layer as batch size
 x = layers.Conv3D(32, (3, 3, 3), activation="relu", padding="same")(encoder_inputs) # relu turns negative values to 0
-#x = layers.BatchNormalization()(x)
 x = layers.MaxPooling3D(pool_size=(2, 2, 2))(x) # max pooling 
+x = layers.SpatialDropout3D(0.3)(x)
 x = layers.Conv3D(64, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.MaxPooling3D(pool_size=(2, 2, 2), padding ='same')(x) 
+x = layers.SpatialDropout3D(0.3)(x)
 x = layers.Conv3D(128, (3, 3, 3), activation="relu",  padding="same")(x)
-x = layers.MaxPooling3D(pool_size=(2, 2, 2), padding='same')(x) 
-#x = layers.BatchNormalization()(x)
-x = layers.Conv3D(256, (3, 3, 3), activation="relu",  padding="same")(x)
-#x = layers.Conv3D(8, (3, 3, 3), activation="relu",  padding="same")(x)
+x = layers.MaxPooling3D(pool_size=(3, 3, 3), padding='same')(x) 
+x = layers.SpatialDropout3D(0.3)(x)
+#x = layers.Conv3D(256, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.Flatten()(x) # to feed into sampling function
 z_mean = layers.Dense(latent_dim, name="z_mean")(x)
 z_log_sigma = layers.Dense(latent_dim, name="z_log_var")(x)
@@ -133,16 +133,17 @@ encoder.summary()
 
 #### Make the decoder, takes the latent keras
 latent_inputs = keras.Input(shape=(latent_dim + n_y),) # changes based on depth 
-x =  layers.Dense(2*12*12*256, activation='relu')(latent_inputs)
-x = layers.Reshape((2, 12, 12, 256))(x)
-#x = layers.Conv3DTranspose(8, (3, 3, 3), activation="relu", strides=2, padding="same")(x)
-x = layers.Conv3DTranspose(128, (3, 3, 3), activation="relu", padding="same")(x)
-x = layers.UpSampling3D((2,2,2))(x)
-#x = layers.BatchNormalization()(x)
+x =  layers.Dense(2*8*8*128, activation='relu')(latent_inputs)
+x = layers.Reshape((2, 8, 8, 128))(x)
+#x = layers.Conv3DTranspose(128, (3, 3, 3), activation="relu", padding="same")(x)
+x = layers.UpSampling3D((2,3,3))(x)
+x = layers.SpatialDropout3D(0.3)(x)
 x = layers.Conv3DTranspose(64, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.UpSampling3D((2,2,2))(x)
+x = layers.SpatialDropout3D(0.3)(x)
 x = layers.Conv3DTranspose(32, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.UpSampling3D((2,2,2))(x)
+x = layers.SpatialDropout3D(0.3)(x)
 decoder_outputs = layers.Conv3DTranspose(1, 3, activation="sigmoid", padding="same")(x)
 # Initiate decoder
 decoder = keras.Model(latent_inputs, decoder_outputs, name="decoder")
@@ -190,32 +191,35 @@ layer = 'z'
 intermediate_layer_model = keras.Model(inputs=[cvae.inputs], outputs=[cvae.get_layer('encoder').get_layer(layer).get_output_at(0)])
 intermediate_output = intermediate_layer_model.predict([x_train, y_train]) # intermediate output is label, 1503 dense, reshape to 
 
+## Looking at variation between predictions and x_test sets (predictions are all very similar, 99%)
 def structural_sim_data(data):
     from skimage.metrics import structural_similarity as ssim
     results = []
-    for i in range(len(data)):
+    for i in range(int(len(data)/2)):
         imageA = data[i]
         for j in range(len(data)):
             if (i == j):
                 continue
             else:
                 imageB = data[j]
+                print(imageB.shape)
                 (score, diff) = ssim(imageA, imageB, full=True)
-                results.append((score))
+                results.append((diff))
     return results
 
 x_test_results = structural_sim_data(x_test)
 
 prediction = cvae.predict([x_test, y_test])
 prediction = prediction[:,:,:,:,0]
-
 prediction_results = structural_sim_data(prediction)
 import seaborn as sns
 ax = sns.boxplot(data = [x_test_results, prediction_results])
 plt.show()
-print(statistcs.mean(x_test_results), statistics.mean(prediction_results))
-####### Linear Discriminant analysis ##
+import statistics
+print(statistics.mean(x_test_results), statistics.mean(prediction_results))
 
+
+####### Linear Discriminant analysis ##
 
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 z_mean_pred, z_sig, z_label_pred, z_pred = encoder.predict([x_train, y_train], batch_size=16)
@@ -232,8 +236,22 @@ plot_lda_cluster(X_lda, y, 'LDA analysis of latent space train set', label_dict,
 from CVAE_3Dplots import lda_densityplot
 lda_densityplot(X_lda, y, 'STUDYGROUP', sklearn_lda)
 
+## Plotting variation between latent space
+img_it = 0
+for i in range(0, 250):
+    z1 = (((i / (250-1)) * max_z)*2) - max_z
+    z_ = [0, z1] # This is where the x axis changes
+    vec = construct_numvec(1, z_)
+    decoded = decoder.predict(vec)
+    ax = plt.subplot(10, 1, 1 + img_it)
+    img_it +=1
+    plt.imshow(decoded.reshape(96, 96), cmap = plt.cm.gray)
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)  
+plt.show()
 
 ## Plots ###########################################################################
+
 
 # for i in range(1, n+1):
 #    # display reconstruction learning

@@ -79,7 +79,7 @@ def reconstruction_plot(x_test, y_test, model, n=9):
         ax.get_yaxis().set_visible(False)
     plt.show()
 
-#reconstruction_plot([x_test, y_test], cvae)
+reconstruction_plot([x_test, y_test], cvae)
 
 def plot_data(x_test, n=9):
     fig = plt.figure(figsize=(20, 2))
