@@ -34,7 +34,7 @@ mri_types =['wp0', # whole brain
 
 niis = []
 labels = []
-num_subjs =200 # max 698
+num_subjs =690 # max 698
 
 # Read in MRI image stacks
 for i in range(num_subjs):
@@ -42,7 +42,7 @@ for i in range(num_subjs):
     nii_path = row['wp0']
     nii = nib.load(nii_path)
     nii = nii.get_fdata()
-    nii = nii[:, 76:92, :]
+    nii = nii[:, 35:51, :] # gives slices 36-51, ones with most variance (<80% similarity) (could maybe expand)
     labels.append(row['STUDYGROUP'])
     for j in range(nii.shape[1]):
         niis.append((nii[:,j,:]))
@@ -87,8 +87,8 @@ y_train = to_categorical(y_train) # tuple num_patients * num_labels convert to o
 y_test = to_categorical(y_test) # tuple num_patients * num_labels
 
  # Autoencoder variables
-epochs = 26
-batch_size = 4
+epochs = 200
+batch_size = 8
 #intermediate_dim = 124
 latent_dim = 256
 n_y = y_train.shape[1] # 2
@@ -140,10 +140,10 @@ x = layers.UpSampling3D((2,3,3))(x)
 x = layers.SpatialDropout3D(0.3)(x)
 x = layers.Conv3DTranspose(64, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.UpSampling3D((2,2,2))(x)
-x = layers.SpatialDropout3D(0.3)(x)
+#x = layers.SpatialDropout3D(0.3)(x)
 x = layers.Conv3DTranspose(32, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.UpSampling3D((2,2,2))(x)
-x = layers.SpatialDropout3D(0.3)(x)
+#x = layers.SpatialDropout3D(0.3)(x)
 decoder_outputs = layers.Conv3DTranspose(1, 3, activation="sigmoid", padding="same")(x)
 # Initiate decoder
 decoder = keras.Model(latent_inputs, decoder_outputs, name="decoder")
@@ -192,31 +192,47 @@ intermediate_layer_model = keras.Model(inputs=[cvae.inputs], outputs=[cvae.get_l
 intermediate_output = intermediate_layer_model.predict([x_train, y_train]) # intermediate output is label, 1503 dense, reshape to 
 
 ## Looking at variation between predictions and x_test sets (predictions are all very similar, 99%)
+
 def structural_sim_data(data):
+    ''' Returns a list of length depth, containing samples*samples-samples variances '''
     from skimage.metrics import structural_similarity as ssim
-    results = []
-    for i in range(int(len(data)/2)):
-        imageA = data[i]
-        for j in range(len(data)):
-            if (i == j):
-                continue
-            else:
-                imageB = data[j]
-                print(imageB.shape)
-                (score, diff) = ssim(imageA, imageB, full=True)
-                results.append((diff))
+    results = []   
+    temp = []
+    count = 0
+    for k in range(int(len(data[0]))): # looping through slice depth
+        for i in range(len(data)): # looping through patients in x 60
+            for j in range(len(data)): # looping again to compare 60
+                if (i == j):
+                    continue
+                else:
+                    (score, diff) = ssim(data[i][k], data[j][k], full=True)
+                    temp.append(score)
+        results.append(temp)
+        temp = []
+        count += 1
+        print(count)
     return results
 
+
 x_test_results = structural_sim_data(x_test)
+import statistics
+slice_var = []
+for i in range(len(x_test)):
+    slice_var.append([i, statistics.mean(x_test[i].flatten())])
 
 prediction = cvae.predict([x_test, y_test])
 prediction = prediction[:,:,:,:,0]
 prediction_results = structural_sim_data(prediction)
+slice_var_pred = []
+for i in range(len(prediction_results)):
+    slice_var_pred.append([i, statistics.mean(prediction_results[i])])
+
+
 import seaborn as sns
 ax = sns.boxplot(data = [x_test_results, prediction_results])
 plt.show()
-import statistics
-print(statistics.mean(x_test_results), statistics.mean(prediction_results))
+
+#print(statistics.mean(slice_var), statistics.mean(slice_var_pred))
 
 
 ####### Linear Discriminant analysis ##
