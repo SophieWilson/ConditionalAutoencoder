@@ -215,8 +215,6 @@ def plot_axis_change(label, sides, max_z, decoder):
 #plot_axis_change(1, 10, 2, decoder)
 
 
-
-
 # Plotting digits as wrong labels 
 # setting fake label
 #label = np.repeat(7, 10000)
