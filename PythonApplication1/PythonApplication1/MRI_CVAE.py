@@ -34,7 +34,7 @@ mri_types =['wp0', # whole brain
 
 niis = []
 labels = []
-num_subjs =690 # max 698
+num_subjs =300 # max 698
 
 # Read in MRI image stacks
 for i in range(num_subjs):
@@ -87,7 +87,7 @@ y_train = to_categorical(y_train) # tuple num_patients * num_labels convert to o
 y_test = to_categorical(y_test) # tuple num_patients * num_labels
 
  # Autoencoder variables
-epochs = 200
+epochs = 20
 batch_size = 8
 #intermediate_dim = 124
 latent_dim = 256
@@ -180,6 +180,7 @@ es_callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
 history = cvae.fit([x_train, y_train], x_train, epochs=epochs, batch_size=batch_size, validation_data = ([x_test, y_test], x_test), verbose = 2, callbacks=[tensorboard_callback, es_callback])
 
 
+# # # # # MODEL END ANALYSIS START # # # # # # 
 
 # This will extract all layers outputs from the model
 #extractor = keras.Model(inputs = cvae.inputs, outputs=[layer.output for
@@ -187,7 +188,7 @@ history = cvae.fit([x_train, y_train], x_train, epochs=epochs, batch_size=batch_
 #extractor = keras.Model([x_train, y_train])
 
 # This will get one named layer from the model
-layer = 'z'
+layer = 'encoded'
 intermediate_layer_model = keras.Model(inputs=[cvae.inputs], outputs=[cvae.get_layer('encoder').get_layer(layer).get_output_at(0)])
 intermediate_output = intermediate_layer_model.predict([x_train, y_train]) # intermediate output is label, 1503 dense, reshape to 
 
@@ -213,7 +214,6 @@ def structural_sim_data(data):
         print(count)
     return results
 
-
 x_test_results = structural_sim_data(x_test)
 import statistics
 slice_var = []
@@ -227,11 +227,9 @@ slice_var_pred = []
 for i in range(len(prediction_results)):
     slice_var_pred.append([i, statistics.mean(prediction_results[i])])
 
-
 import seaborn as sns
 ax = sns.boxplot(data = [x_test_results, prediction_results])
 plt.show()
-
 #print(statistics.mean(slice_var), statistics.mean(slice_var_pred))
 
 
@@ -253,18 +251,18 @@ from CVAE_3Dplots import lda_densityplot
 lda_densityplot(X_lda, y, 'STUDYGROUP', sklearn_lda)
 
 ## Plotting variation between latent space
-img_it = 0
-for i in range(0, 250):
-    z1 = (((i / (250-1)) * max_z)*2) - max_z
-    z_ = [0, z1] # This is where the x axis changes
-    vec = construct_numvec(1, z_)
-    decoded = decoder.predict(vec)
-    ax = plt.subplot(10, 1, 1 + img_it)
-    img_it +=1
-    plt.imshow(decoded.reshape(96, 96), cmap = plt.cm.gray)
-    ax.get_xaxis().set_visible(False)
-    ax.get_yaxis().set_visible(False)  
-plt.show()
+#img_it = 0
+#for i in range(0, 250):
+#    z1 = (((i / (250-1)) * max_z)*2) - max_z
+#    z_ = [0, z1] # This is where the x axis changes
+#    vec = construct_numvec(1, z_)
+#    decoded = decoder.predict(vec)
+#    ax = plt.subplot(10, 1, 1 + img_it)
+#    img_it +=1
+#    plt.imshow(decoded.reshape(96, 96), cmap = plt.cm.gray)
+#    ax.get_xaxis().set_visible(False)
+#    ax.get_yaxis().set_visible(False)  
+#plt.show()
 
 ## Plots ###########################################################################
 

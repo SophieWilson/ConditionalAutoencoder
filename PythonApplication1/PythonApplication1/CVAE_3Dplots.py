@@ -128,10 +128,10 @@ def lossplot(history):
 #lossplot(history)
 
 # Reconstructing specific digits
-def construct_numvec(digit, z = None, n_z = 2, n_y = 10):
+def construct_numvec(label, z = None, n_z = 256, n_y = 5):
     ''' make number vector, its called in plot_latent_space, must change n_z and n_y values  here if you want to fix a plot '''
     out = np.zeros((1, n_z + n_y))
-    out[:, digit + n_z] = 1.
+    out[:, label + n_z] = 1.
     if z is None:
         return(out)
     else:
@@ -146,7 +146,7 @@ def construct_numvec(digit, z = None, n_z = 2, n_y = 10):
 #plt.show()
 
 
-def plot_latent_space(dig, max_z, sides, decoder):
+def plot_latent_space(label, max_z, sides, decoder):
     ''' Plotting latent space with respect to specific numbers 
         dig = 1
         sides = 8
@@ -159,11 +159,11 @@ def plot_latent_space(dig, max_z, sides, decoder):
         for j in range(0, sides):
             z2 = (((j / (sides-1)) * max_z)*2) - max_z
             z_ = [z1, z2]
-            vec = construct_numvec(dig, z_)
+            vec = construct_numvec(label, z_)
             decoded = decoder.predict(vec)
             ax = plt.subplot(sides, sides, 1 + img_it)
             img_it +=1
-            plt.imshow(decoded.reshape(28, 28), cmap = plt.cm.gray)
+            plt.imshow(decoded[j].reshape(96, 96), cmap = plt.cm.gray)
             ax.get_xaxis().set_visible(False)
             ax.get_yaxis().set_visible(False)  
     plt.show()
@@ -176,57 +176,46 @@ def latent_space_traversal(sides, max_z, decoder):
     img_it = 0
     fig = plt.figure(figsize = (20, 20))
     fig.suptitle('Latent space traversal', fontsize=10)
-    for i in range(0, sides):
+    
+    for i in range(0, depth):
         z1 = (((i / (sides-1)) * max_z)*2) - max_z
         z_ = [z1, 0]
         for j in range(0, sides):
             vec = construct_numvec(j, z_)
             decoded = decoder.predict(vec)
+            quard = int(math.sqrt(decoded.shape[1]))
             ax = plt.subplot(sides, sides, 1 + img_it)
             img_it +=1
-            plt.imshow(decoded.reshape(28, 28), cmap = plt.cm.gray)
+            plt.imshow(decoded[0][0].reshape(quard, quard), cmap = plt.cm.gray)
             ax.get_xaxis().set_visible(False)
             ax.get_yaxis().set_visible(False)  
     plt.show()
-#latent_space_traversal(10, 1.5, decoder)
+#latent_space_traversal(10, 4, decoder)
 
-def plot_x_axis_change(dig, sides, max_z, decoder):
+
+
+def plot_axis_change(label, sides, max_z, decoder):
     ''' Plotting x axis change
         have been using 1, 10, 1.5 for inputs '''
     img_it = 0
     fig = plt.figure(figsize = (2, 20))
-    fig.suptitle('Varying X', fontsize=10)
+    fig.suptitle('Varying axis', fontsize=10)
+
     for i in range(0, sides):
         z1 = (((i / (sides-1)) * max_z)*2) - max_z
-        z_ = [0, z1] # This is where the x axis changes
-        vec = construct_numvec(dig, z_)
+        z_ = [0, 0, z1] # This is where the axis changes (right now its first, try to change that)
+        vec = construct_numvec(label, z_)
         decoded = decoder.predict(vec)
         ax = plt.subplot(10, 1, 1 + img_it)
         img_it +=1
-        plt.imshow(decoded.reshape(28, 28), cmap = plt.cm.gray)
+        plt.imshow(decoded[0][0].reshape(96, 96), cmap = plt.cm.gray)
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)  
     plt.show()
-#plot_x_axis_change(1, 10, 1.5, decoder)
+#plot_axis_change(1, 10, 2, decoder)
 
-def plot_y_axis_change(dig, sides, max_z, decoder):
-    ''' Plotting y axis change 
-        have been using 1, 10, 1.5 for inputs '''
-    img_it = 0
-    fig = plt.figure(figsize = (2, 20))
-    fig.suptitle('Varying y', fontsize=10)
-    vec = construct_numvec(dig, z_)
-    decoded = decoder.predict(vec)
-    for i in range(0, sides):
-        z1 = (((i / (sides-1)) * max_z)*2) - max_z
-        z_ = [z1, 0] # This is where the y axis changes
-        ax = plt.subplot(10, 1, 1 + img_it)
-        img_it +=1
-        plt.imshow(decoded.reshape(28, 28), cmap = plt.cm.gray)
-        ax.get_xaxis().set_visible(False)
-        ax.get_yaxis().set_visible(False)  
-    plt.show()
-#plot_y_axis_change(1, 10, 1.5, decoder)
+
+
 
 # Plotting digits as wrong labels 
 # setting fake label
