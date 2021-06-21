@@ -112,8 +112,8 @@ def slice_analysis(images):
 def latent_ssim_analysis(label, num_recon, max_z, decoder, latent_dim):
 
     def latent_space_var():
-        ''' this is messy and rubbish sorry, but it does work. gives reconstructions for images across the latent space. num_recon is number of reconstructions you want to test over, max_z is maximum and minimum latent space dim. '''
-        from CVAE_3Dplots import construct_numvec
+        ''' this is messy but it does work. gives reconstructions for images across the latent space. num_recon is number of reconstructions you want to test over, max_z is maximum and minimum latent space dim. '''
+        #from CVAE_3Dplots import construct_numvec
         decoded_list = [[] for x in range(latent_dim)]
         for i in range(latent_dim): # looping through dimensions
             z_ = [0] * i
@@ -149,11 +149,12 @@ def latent_ssim_analysis(label, num_recon, max_z, decoder, latent_dim):
             count+=1
         return results
 
-    lat_var = latent_space_var(0, 100, 4, decoder, 100)
+    lat_var = latent_space_var()
     # lat_var is of shape 30, 10, (16, 96, 96), 30 dimensions, 10 recons 
     latent_ssim = structural_sim_latent(lat_var)
     latent_slice_var = []
     counter = 0
+    import statistics
     for i in range(len(latent_ssim)):
         counter += 1
         latent_slice_var.append([i, statistics.mean(latent_ssim[i])])
@@ -162,6 +163,8 @@ def latent_ssim_analysis(label, num_recon, max_z, decoder, latent_dim):
 
     latent_df = pd.DataFrame(latent_slice_var)
     return latent_df
+
+latent_ssim_analysis(0, 10, 4, decoder, 50)
 
 #def latent_space_var(label, sides, max_z, decoder, latent_dim):
 #    decoded_list = [[] for x in range(latent_dim)]
@@ -175,3 +178,5 @@ def latent_ssim_analysis(label, num_recon, max_z, decoder, latent_dim):
 #            decoded = decoded[:,:,:,:,0]
 #            decoded_list[i].append(decoded)
 #    return decoded_list
+
+

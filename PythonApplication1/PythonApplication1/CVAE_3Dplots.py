@@ -83,13 +83,14 @@ def reconstruction_plot(x_test, y_test, model, slice, n=9):
 
 #reconstruction_plot(x_test, y_test, cvae, 1)
 
-def plot_slices(x_test, n = 9):
-    fig = plt.figure(figsize=(20, 2))
+def plot_slices(x_test, n = 15):
+    ''' working '''
+    fig = plt.figure(figsize=(20, 3))
     fig.suptitle('Input slices', fontsize=10)
     for i in range(1, n + 1):
         # Display original
         ax = plt.subplot(2, n, i)
-        plt.imshow(x_test[1][i].reshape(x_test.shape[2], x_test.shape[2])) # sample i, input slice
+        plt.imshow(x_test[1][i]) # sample i, input slice
         plt.gray()
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
@@ -192,18 +193,40 @@ def latent_space_traversal(sides, max_z, decoder):
     plt.show()
 #latent_space_traversal(10, 4, decoder)
 
-
-
-def plot_axis_change(label, sides, max_z, decoder):
-    ''' Plotting x axis change
-        have been using 1, 10, 1.5 for inputs '''
-    img_it = 0
-    fig = plt.figure(figsize = (2, 20))
-    fig.suptitle('Varying axis', fontsize=10)
-
+def get_axis_change(label, sides, max_z, decoder, latent_dim, slice_num):
+    ''' feed into sliceview to get a scroll of latent space '''
+    z_ = [0] * latent_dim
+    dec_list = []
     for i in range(0, sides):
         z1 = (((i / (sides-1)) * max_z)*2) - max_z
-        z_ = [0, 0, z1] # This is where the axis changes (right now its first, try to change that)
+        z_.append(z1) # This is where the axis changes (right now its first, try to change that)
+        vec = construct_numvec(label, z_)
+        decoded = decoder.predict(vec)
+        decoded = decoded.reshape(16, 96, 96)
+        dec_list.append(decoded)
+    dec_list = [x[slice_num] for x in dec_list]
+    return dec_list
+
+
+list = []
+for i in range(len(z[1])):
+    temp = [x[i] for x in z]
+    tup = [max(temp), min(temp)]
+    list.append(tup)
+
+
+def plot_axis_change(label, sides, max_z, decoder, latent_dim):
+    ''' Plotting x axis change
+    sides = number of recons
+        have been using 1, 10, 1.5 for inputs, gives strange outputs '''
+    #from CVAE_3Dplots import construct_numvec
+    img_it = 0
+    fig = plt.figure(figsize = (4, 20))
+    fig.suptitle('Varying axis', fontsize=10)
+    z_ = [0] * latent_dim
+    for i in range(0, sides):
+        z1 = (((i / (sides-1)) * max_z)*2) - max_z
+        z_.append(z1) # This is where the axis changes (right now its first, try to change that)
         vec = construct_numvec(label, z_)
         decoded = decoder.predict(vec)
         ax = plt.subplot(10, 1, 1 + img_it)
@@ -211,9 +234,9 @@ def plot_axis_change(label, sides, max_z, decoder):
         plt.imshow(decoded[0][0].reshape(96, 96), cmap = plt.cm.gray)
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)  
+        z_.pop()
     plt.show()
-#plot_axis_change(1, 10, 2, decoder)
-
+#plot_axis_change(1, 10, 2, decoder, 2)
 
 # Plotting digits as wrong labels 
 # setting fake label
@@ -271,3 +294,69 @@ def lda_densityplot(X_lda, y, label, sklearn_lda):#
         sns.displot(df, x=df.iloc[:,i], hue='label', kind='kde', fill = True, palette='tab10').fig.suptitle('LDA Dimension ' + str(i+1) + ', ' + label + ', explained variance:' + str(round(sklearn_lda.explained_variance_ratio_[i], 2)))
     plt.show()
 
+
+def sliceview(volume, axis=0, rot=1, show=True):
+    """View a 3d image volume with mousewheel scrolling to progress through slices.
+    Optional arguments:
+    axis: which axis the mousewheel controls.
+    rot: how many times to rotate the visible plane in 90deg turns
+    show: whether or not to instantly show the plot"""
+    fig, ax = plt.subplots()
+
+    # optionally rotate the front facing view by an integer amount of 90deg turns
+    if rot != 0:
+        not_axis = [0,1,2]
+        not_axis.remove(axis)
+        volume = np.rot90(volume, k=rot, axes=not_axis)
+    ax.volume = volume
+
+    if axis == 0:
+        ax.index = volume.shape[0] // 2
+        ax.imshow(volume[ax.index], cmap='gray')
+    elif axis == 1:
+        ax.index = volume.shape[1] // 2
+        ax.imshow(volume[:,ax.index], cmap='gray')
+    elif axis == 2:
+        ax.index = volume.shape[2] // 2
+        ax.imshow(volume[:,:,ax.index], cmap='gray')
+    else:
+        raise Exception("Axis must be 0, 1, or 2")
+
+    # wrapper function to encode axis argument into process_mwheel:
+    def process_mwheel_along_axis(*args):
+        return process_mwheel(*args, axis=axis)
+
+    fig.canvas.mpl_connect('scroll_event', process_mwheel_along_axis)
+    ax.anno = ax.annotate(f'z={ax.index}/{ax.volume.shape[axis]-1}',
+            xy=(3, 1), xycoords='data',
+            xytext=(0.05, 0.95), textcoords='axes fraction',
+            c='white',
+            horizontalalignment='left', verticalalignment='top')
+    if show:
+        plt.show()
+
+def process_mwheel(event, axis=0):
+    """mousewheel event handler for sliceview function"""
+    fig = event.canvas.figure
+    ax = fig.axes[0]
+    old_index = ax.index
+
+    if event.button == 'down':
+        ax.index = np.maximum(ax.index-1, 0)
+    elif event.button == 'up':
+        ax.index = np.minimum(ax.index+1, ax.volume.shape[axis]-1)
+
+    if axis == 0:
+        ax.images[0].set_array(ax.volume[ax.index])
+    elif axis == 1:
+        ax.images[0].set_array(ax.volume[:,ax.index])
+    elif axis == 2:
+        ax.images[0].set_array(ax.volume[:,:,ax.index])
+
+    ax.anno.remove()
+    ax.anno = ax.annotate(f'z={ax.index}/{ax.volume.shape[axis]-1}',
+            xy=(3, 1), xycoords='data',
+            xytext=(0.05, 0.95), textcoords='axes fraction',
+            c='white',
+            horizontalalignment='left', verticalalignment='top')
+    fig.canvas.draw()

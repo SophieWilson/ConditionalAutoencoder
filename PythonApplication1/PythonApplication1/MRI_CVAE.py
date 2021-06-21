@@ -42,7 +42,7 @@ for i in range(num_subjs):
     nii_path = row['wp0']
     nii = nib.load(nii_path)
     nii = nii.get_fdata()
-    nii = nii[:, 35:51, :] # gives slices 36-51, ones with most variance (<80% similarity) (could maybe expand)
+    nii = nii[:, 35:51, :] # gives 16 slices 36-51, ones with most variance (<80% similarity) (detailed in slice_variance.csv)
     labels.append(row['STUDYGROUP'])
     for j in range(nii.shape[1]):
         niis.append((nii[:,j,:]))
@@ -50,16 +50,16 @@ for i in range(num_subjs):
 depth = len(nii[2])
 
 # Prepare to crop images
-def crop_center(img,cropx,cropy):
-    y,x = img.shape
-    startx = x//2-(cropx//2)
-    starty = y//2-(cropy//2)    
-    return img[starty:starty+cropy,startx:startx+cropx]
+#def crop_center(img,cropx,cropy):
+#    y,x = img.shape
+#    startx = x//2-(cropx//220) # // means floor division (rounds down to whole number)
+#    starty = y//2-(cropy//2)    
+#    return img[starty:starty+cropy,startx:startx+cropx]
 # crop images in niis list
 images = []
 for i in range(len(niis)):
     img = niis[i]
-    img = crop_center(img, 96, 96)
+    img = img[12:108, 2:98]
     images.append(img)
     
 images = np.asarray(images) # shape num_subjs*121*121
@@ -180,75 +180,42 @@ es_callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
 history = cvae.fit([x_train, y_train], x_train, epochs=epochs, batch_size=batch_size, validation_data = ([x_test, y_test], x_test), verbose = 2, callbacks=[tensorboard_callback, es_callback])
 
 
-# # # # # MODEL END ANALYSIS START # # # # # # 
+# # # # # MODEL END ANALYSIS START # # # # # # # # # # # # # # # # # # # # # # # # # # # ## # # # # 
 
-# This will extract all layers outputs from the model
-#extractor = keras.Model(inputs = cvae.inputs, outputs=[layer.output for
-#layer in cvae.layers])
-#extractor = keras.Model([x_train, y_train])
 
-# This will get one named layer from the model
-layer = 'encoded'
-intermediate_layer_model = keras.Model(inputs=[cvae.inputs], outputs=[cvae.get_layer('encoder').get_layer(layer).get_output_at(0)])
-intermediate_output = intermediate_layer_model.predict([x_train, y_train]) # intermediate output is label, 1503 dense, reshape to 
+from ccvae_analysis import get_namedlayer
+encoded_output = get_namedlayer('encoded', cvae, x_train, y_train)
 
 ## Looking at variation between predictions and x_test sets (predictions are all very similar, 99%)
-
-def structural_sim_data(data):
-    ''' Returns a list of length depth, containing samples*samples-samples variances '''
-    from skimage.metrics import structural_similarity as ssim
-    results = []   
-    temp = []
-    count = 0
-    for k in range(int(len(data[0]))): # looping through slice depth
-        for i in range(len(data)): # looping through patients in x 60
-            for j in range(len(data)): # looping again to compare 60
-                if (i == j):
-                    continue
-                else:
-                    (score, diff) = ssim(data[i][k], data[j][k], full=True)
-                    temp.append(score)
-        results.append(temp)
-        temp = []
-        count += 1
-        print(count)
-    return results
-
-x_test_results = structural_sim_data(x_test)
-import statistics
-slice_var = []
-for i in range(len(x_test)):
-    slice_var.append([i, statistics.mean(x_test[i].flatten())])
-
-prediction = cvae.predict([x_test, y_test])
-prediction = prediction[:,:,:,:,0]
-prediction_results = structural_sim_data(prediction)
-slice_var_pred = []
-for i in range(len(prediction_results)):
-    slice_var_pred.append([i, statistics.mean(prediction_results[i])])
-
-import seaborn as sns
-ax = sns.boxplot(data = [x_test_results, prediction_results])
-plt.show()
-#print(statistics.mean(slice_var), statistics.mean(slice_var_pred))
-
+from ccvae_analysis import structural_sim_data, var_boxplot, var_summary
+# var_boxplot calls structural_sim_data
+var_boxplot(x_test, y_test, cvae)
+# var_summary calls var_boxplot
+var_summary(x_test)
 
 ####### Linear Discriminant analysis ##
+from ccvae_analysis import lda
+lda(encoder, x_train, y_train, train_label)
 
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-z_mean_pred, z_sig, z_label_pred, z_pred = encoder.predict([x_train, y_train], batch_size=16)
-sklearn_lda = LinearDiscriminantAnalysis()
-y = np.array(train_label)
-z_pred = pd.DataFrame(z_pred)
-X_lda = sklearn_lda.fit_transform(z_pred, y)
-label_dict = {1: 'Healthy', 2: 'At risk of SCZ', 3:'Depression', 4:'SCZ'}
+from CVAE_3Dplots import plot_clusters
+plot_clusters(encoder, x_test, y_test, test_label, batch_size = 16)
+plot_clusters(encoder, x_train, y_train, train_label, batch_size = 16)
 
-
-from CVAE_3Dplots import plot_lda_cluster
-plot_lda_cluster(X_lda, y, 'LDA analysis of latent space train set', label_dict, sklearn_lda)
-
-from CVAE_3Dplots import lda_densityplot
-lda_densityplot(X_lda, y, 'STUDYGROUP', sklearn_lda)
+#from CVAEplots import plot_clusters
+#plot_clusters(encoder, x_test, y_test, plot_labels_test, batch_size)
+from CVAE_3Dplots import reconstruction_plot
+reconstruction_plot(x_test, y_test, cvae, slice=2)
+# Plotting digits as wrong labels 
+# prbably female 2
+label = np.repeat(3, len(y_test))
+label_fake = to_categorical(label, num_classes=len(y_test[0]))
+reconstruction_plot(x_test, label_fake, cvae, slice= 2)
+# probably male 1
+label = np.repeat(0, len(y_test))
+label_fake = to_categorical(label, num_classes=len(y_test[0]))
+reconstruction_plot(x_test, label_fake, cvae, slice= 2)
+#from CVAEplots import lossplot
+#lossplot(history)
 
 ## Plotting variation between latent space
 #img_it = 0
@@ -276,25 +243,7 @@ lda_densityplot(X_lda, y, 'STUDYGROUP', sklearn_lda)
 #    ax.get_yaxis().set_visible(False)
 #plt.show()
 
-from CVAE_3Dplots import plot_clusters
-plot_clusters(encoder, x_test, y_test, test_label, batch_size = 16)
-plot_clusters(encoder, x_train, y_train, train_label, batch_size = 16)
 
-#from CVAEplots import plot_clusters
-#plot_clusters(encoder, x_test, y_test, plot_labels_test, batch_size)
-from CVAE_3Dplots import reconstruction_plot
-reconstruction_plot(x_test, y_test, cvae, slice=2)
-# Plotting digits as wrong labels 
-# prbably female 2
-label = np.repeat(3, len(y_test))
-label_fake = to_categorical(label, num_classes=len(y_test[0]))
-reconstruction_plot(x_test, label_fake, cvae, slice= 2)
-# probably male 1
-label = np.repeat(0, len(y_test))
-label_fake = to_categorical(label, num_classes=len(y_test[0]))
-reconstruction_plot(x_test, label_fake, cvae, slice= 2)
-#from CVAEplots import lossplot
-#lossplot(history)
 
 
 #from CVAEplots import plot_latent_space
