@@ -20,10 +20,13 @@ from keras.layers.merge import concatenate
 import matplotlib.pyplot as plt
 # load in MNIST
 (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
+#print(x_train.shape) # 60000 28 28
 x_train = x_train.astype('float32') / 255
 x_test = x_test.astype('float32') / 255
-x_train = x_train.reshape((len(x_train), np.prod(x_train.shape[1:]))) # 10 * 784 * 60,000
-x_test = x_test.reshape((len(x_test), np.prod(x_test.shape[1:]))) # 10 * 784 * 10,000
+x_train = x_train.reshape((len(x_train), np.prod(x_train.shape[1:]))) # 60000, 784
+# print(x_train.shape) # 600000 784
+x_test = x_test.reshape((len(x_test), np.prod(x_test.shape[1:]))) # 10000, 784 
+print(x_test.shape)
 # convert y to onehot
 plot_labels_test = y_test
 plot_labels_train = y_train
@@ -32,13 +35,15 @@ y_test = to_categorical(y_test) # tuple 10,000 * 10
 
 
 epochs = 5
-origin_dim = 28 * 28 # 78
+origin_dim = 28 * 28 # 784
 batch_size = 128
 intermediate_dim = 64
 latent_dim = 2
 n_y = y_train.shape[1] # 10
 n_x = x_train.shape[1] # 784
-print(n_y, n_x)
+print(n_y, n_x) # 10 784
+print(y_train[1].shape) # 10,
+print(x_train.shape, x_train[1].shape) # 60000, 784) (784,)
 n_z = 2
 
 # Make a sampling layer, this maps the MNIST digit to latent-space triplet (z_mean, z_log_var, z), this is how the bottleneck is displayed. 
@@ -57,7 +62,7 @@ encoder_inputs = concatenate([x, label])
 ## Make the encoder
 # outputs, as this is variational you have two outputs, the mean and the sigma of the latent dimension, so it takes a sample from this distribtion to run through back propagation. As you cant back propagation from a sample distribution epsilon is added to z to allow it to be run through the decoder. This is what the sampling funciton does.
 h = layers.Dense(512, activation='relu')(encoder_inputs)
-h = layers.Dense(128, activation='relu')(h)
+h = layers.Dense(128, activation='relu')(h) # relu turns negative values to 0
 #h = layers.Dense(64, activation='relu')(h)
 h = layers.Dense(intermediate_dim, activation='relu')(h)
 z_mean = layers.Dense(latent_dim, name="z_mean")(h)
@@ -110,7 +115,7 @@ cvae.compile(optimizer='adam',)
 # Tensorboard
 from keras.callbacks import TensorBoard
 import datetime
-log_dir = "C:/Users/Mischa/sophie/logs" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+log_dir = "C:/Users/Mischa/sophie/CVAE" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 tensorboard_callback = TensorBoard(log_dir=log_dir)
 
 # Adding early stopping
@@ -122,14 +127,14 @@ print(history.history.keys())
 
 
 ## Plots
-from CVAEplots import plot_clusters
-plot_clusters(encoder, x_test, y_test, plot_labels_test, batch_size)
+#from CVAEplots import plot_clusters
+#plot_clusters(encoder, x_test, y_test, plot_labels_test, batch_size)
 
 from CVAEplots import reconstruction_plot
 reconstruction_plot(x_test, y_test, cvae)
 
-from CVAEplots import lossplot
-lossplot(history)
+#from CVAEplots import lossplot
+#lossplot(history)
 
 from CVAEplots import plot_latent_space
 plot_latent_space(1, 1.5, 8, decoder)

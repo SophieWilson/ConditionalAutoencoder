@@ -95,7 +95,8 @@ images = np.asarray(niis)
 # reshape to matrix in able to feed into network
 images = images.reshape(-1, 121, 121, 1)
 #print(images.shape) # 510,121,121,1
-
+plt.imshow(images[1])
+plt.show()
 # min-max normalisation to rescale (why?)
 m = np.max(images)
 mi = np.min(images)
@@ -115,6 +116,8 @@ train_X,valid_X,train_ground,valid_ground = train_test_split(images, images, tes
 # training shape
 print("Dataset (images) shape: {shape}".format(shape=images.shape))
 
+plt.imshow(train_ground[1])
+plt.show()
 # plot
 #plt.figure(figsize=[5,5])
 ## Display the first image in training data
@@ -128,7 +131,7 @@ print("Dataset (images) shape: {shape}".format(shape=images.shape))
 
 # Convolutional autoencoder
 batch_size = 64
-epochs = 500
+epochs = 50
 inChannel = 1
 x, y = 124, 124
 input_img = Input(shape = (x, y, inChannel))

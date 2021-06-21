@@ -59,17 +59,20 @@ for i in range(num_subjs):
 
 ## Set autoencoder variables
 epochs = 200
-origin_dim = 28 * 28
+
 #intermediate_dim = 64
 latent_dim = 200 # compressing image to something
 batch_size = 16
 inchannel = 1
 X, y = 124, 124
 depth = len(nii[2]) # the number of slices set above
+origin_dim = 28*28 # maybe change this?
+
+
 
 ## Preprocessing
-
 images = np.asarray(niis) # shape num_subjs*121*121
+
 # reshape to matrix in able to feed into network
 images = images.reshape(-1, depth, 121, 121) # num_subjs,depth,121,121,
 ### min-max normalisation to rescale between 1 and 0 to improve accuracy
@@ -135,7 +138,7 @@ outputs = decoder(encoder(encoder_inputs)[2])
 vae = keras.Model(encoder_inputs, outputs, name='vae')
 
 # Custom loss function, this includes a KL divergence regularisation term which ensures that z is close to normal (0 mean, 1 sd)
-reconstruction_loss = keras.losses.binary_crossentropy(encoder_inputs, outputs)
+reconstruction_loss = keras.losses.binary_crossentropy(encoder_inputs, outputs) # outputs None,2,124,124
 reconstruction_loss *= origin_dim
 reconstruction_loss = K.mean(reconstruction_loss) # mean to avoid incompatible shape error
 kl_loss = 1 + z_log_sigma - K.square(z_mean) - K.exp(z_log_sigma)
