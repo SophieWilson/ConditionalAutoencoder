@@ -1,16 +1,16 @@
 
-import tensorflow as tf
-gpus = tf.config.experimental.list_physical_devices('GPU')
-if gpus:
-    try:
-        # Currently, memory growth needs to be the same across GPUs
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-        logical_gpus = tf.config.experimental.list_logical_devices('GPU')
-        #print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
-    except RuntimeError as e:
-        # Memory growth must be set before GPUs have been initialized
-        print(e)
+#import tensorflow as tf
+#gpus = tf.config.experimental.list_physical_devices('GPU')
+#if gpus:
+#    try:
+#        # Currently, memory growth needs to be the same across GPUs
+#        for gpu in gpus:
+#            tf.config.experimental.set_memory_growth(gpu, True)
+#        logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+#        #print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+#    except RuntimeError as e:
+#        # Memory growth must be set before GPUs have been initialized
+#        print(e)
 
 import numpy as np
 from keras.utils import to_categorical
@@ -21,52 +21,52 @@ import math
 import glob
 import nibabel as nib #reading MR images
 
-filepath_df = pd.read_csv('Z:/PRONIA_data/Tables/pronia_full_niftis.csv')
+#filepath_df = pd.read_csv('Z:/PRONIA_data/Tables/pronia_full_niftis.csv')
 
-mri_types =['wp0', # whole brain
-            'wp1', # gm
-            'wp2', # wm
-            'mwp2', # modulated? wm
-            'rp1', # gm mask
-            'rp2'] # wm mask
+#mri_types =['wp0', # whole brain
+#            'wp1', # gm
+#            'wp2', # wm
+#            'mwp2', # modulated? wm
+#            'rp1', # gm mask
+#            'rp2'] # wm mask
 
-niis = []
-labels = []
-num_subjs =200 # max 698
-# Read in MRI image stacks
-for i in range(num_subjs):
-    row = filepath_df.iloc[i]
-    nii_path = row['wp0']
-    nii = nib.load(nii_path)
-    nii = nii.get_fdata() 
-    nii = nii[:, 35:53, :] #gives slices 36-53, the ones with the most vai
-    labels.append(row['STUDYGROUP'])
-    for j in range(nii.shape[1]):
-        niis.append((nii[:,j,:]))
+#niis = []
+#labels = []
+#num_subjs =200 # max 698
+## Read in MRI image stacks
+#for i in range(num_subjs):
+#    row = filepath_df.iloc[i]
+#    nii_path = row['wp0']
+#    nii = nib.load(nii_path)
+#    nii = nii.get_fdata() 
+#    nii = nii[:, 35:53, :] #gives slices 36-53, the ones with the most vai
+#    labels.append(row['STUDYGROUP'])
+#    for j in range(nii.shape[1]):
+#        niis.append((nii[:,j,:]))
         
-depth = len(nii[2])
+#depth = len(nii[2])
 
-# Prepare to crop images
-def crop_center(img,cropx,cropy):
-    y,x = img.shape
-    startx = x//2-(cropx//2)
-    starty = y//2-(cropy//2)    
-    return img[starty:starty+cropy,startx:startx+cropx]
-# crop images in niis list
-images = []
-for i in range(len(niis)):
-    img = niis[i]
-    img = crop_center(img, 96, 96)
-    images.append(img)
+## Prepare to crop images
+#def crop_center(img,cropx,cropy):
+#    y,x = img.shape
+#    startx = x//2-(cropx//2)
+#    starty = y//2-(cropy//2)    
+#    return img[starty:starty+cropy,startx:startx+cropx]
+## crop images in niis list
+#images = []
+#for i in range(len(niis)):
+#    img = niis[i]
+#    img = crop_center(img, 96, 96)
+#    images.append(img)
     
-images = np.asarray(images) # shape num_subjs*121*121
-# reshape to matrix in able to feed into network
-images = images.reshape(-1, depth, 96, 96) # num_subjs,depth,121,121,
+#images = np.asarray(images) # shape num_subjs*121*121
+## reshape to matrix in able to feed into network
+#images = images.reshape(-1, depth, 96, 96) # num_subjs,depth,121,121,
 
-### min-max normalisation to rescale between 1 and 0 to improve accuracy
-m = np.max(images)
-mi = np.min(images) 
-images = (images - mi) / (m - mi)
+#### min-max normalisation to rescale between 1 and 0 to improve accuracy
+#m = np.max(images)
+#mi = np.min(images) 
+#images = (images - mi) / (m - mi)
 
 ## Image slice analysis to see whats the most variation # # # #
 def slice_analysis(images):
@@ -164,7 +164,7 @@ def latent_ssim_analysis(label, num_recon, max_z, decoder, latent_dim):
     latent_df = pd.DataFrame(latent_slice_var)
     return latent_df
 
-latent_ssim_analysis(0, 10, 4, decoder, 50)
+#latent_ssim_analysis(0, 10, 4, decoder, 50)
 
 #def latent_space_var(label, sides, max_z, decoder, latent_dim):
 #    decoded_list = [[] for x in range(latent_dim)]

@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import math
 import glob
+import matplotlib.pyplot as plt
 import nibabel as nib #reading MR images
 
 filepath_df = pd.read_csv('Z:/PRONIA_data/Tables/pronia_full_niftis.csv')
@@ -34,7 +35,7 @@ mri_types =['wp0', # whole brain
 
 niis = []
 labels = []
-num_subjs =300 # max 698
+num_subjs =290 # max 698
 
 # Read in MRI image stacks
 for i in range(num_subjs):
@@ -179,41 +180,43 @@ es_callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
 # fit the data 
 history = cvae.fit([x_train, y_train], x_train, epochs=epochs, batch_size=batch_size, validation_data = ([x_test, y_test], x_test), verbose = 2, callbacks=[tensorboard_callback, es_callback])
 
+#import os
+#os.system("python %s %d %s" % (MRI_CVAE, x_test, y_test))
 
 # # # # # MODEL END ANALYSIS START # # # # # # # # # # # # # # # # # # # # # # # # # # # ## # # # # 
 
 
-from ccvae_analysis import get_namedlayer
-encoded_output = get_namedlayer('encoded', cvae, x_train, y_train)
+#from ccvae_analysis import get_namedlayer
+#encoded_output = get_namedlayer('encoded', cvae, x_train, y_train)
 
-## Looking at variation between predictions and x_test sets (predictions are all very similar, 99%)
-from ccvae_analysis import structural_sim_data, var_boxplot, var_summary
-# var_boxplot calls structural_sim_data
-var_boxplot(x_test, y_test, cvae)
-# var_summary calls var_boxplot
-var_summary(x_test)
+### Looking at variation between predictions and x_test sets (predictions are all very similar, 99%)
+#from ccvae_analysis import structural_sim_data, var_boxplot, var_summary
+## var_boxplot calls structural_sim_data
+#var_boxplot(x_test, y_test, cvae)
+## var_summary calls var_boxplot
+#var_summary(x_test)
 
-####### Linear Discriminant analysis ##
-from ccvae_analysis import lda
-lda(encoder, x_train, y_train, train_label)
+######## Linear Discriminant analysis ##
+#from ccvae_analysis import lda
+#lda(encoder, x_train, y_train, train_label)
 
-from CVAE_3Dplots import plot_clusters
-plot_clusters(encoder, x_test, y_test, test_label, batch_size = 16)
-plot_clusters(encoder, x_train, y_train, train_label, batch_size = 16)
+#from CVAE_3Dplots import plot_clusters
+#plot_clusters(encoder, x_test, y_test, test_label, batch_size = 16)
+#plot_clusters(encoder, x_train, y_train, train_label, batch_size = 16)
 
-#from CVAEplots import plot_clusters
-#plot_clusters(encoder, x_test, y_test, plot_labels_test, batch_size)
-from CVAE_3Dplots import reconstruction_plot
-reconstruction_plot(x_test, y_test, cvae, slice=2)
-# Plotting digits as wrong labels 
-# prbably female 2
-label = np.repeat(3, len(y_test))
-label_fake = to_categorical(label, num_classes=len(y_test[0]))
-reconstruction_plot(x_test, label_fake, cvae, slice= 2)
-# probably male 1
-label = np.repeat(0, len(y_test))
-label_fake = to_categorical(label, num_classes=len(y_test[0]))
-reconstruction_plot(x_test, label_fake, cvae, slice= 2)
+##from CVAEplots import plot_clusters
+##plot_clusters(encoder, x_test, y_test, plot_labels_test, batch_size)
+#from CVAE_3Dplots import reconstruction_plot
+#reconstruction_plot(x_test, y_test, cvae, slice=2)
+## Plotting digits as wrong labels 
+## prbably female 2
+#label = np.repeat(3, len(y_test))
+#label_fake = to_categorical(label, num_classes=len(y_test[0]))
+#reconstruction_plot(x_test, label_fake, cvae, slice= 2)
+## probably male 1
+#label = np.repeat(0, len(y_test))
+#label_fake = to_categorical(label, num_classes=len(y_test[0]))
+#reconstruction_plot(x_test, label_fake, cvae, slice= 2)
 #from CVAEplots import lossplot
 #lossplot(history)
 

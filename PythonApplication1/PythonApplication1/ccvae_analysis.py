@@ -1,5 +1,8 @@
 import MRI_CVAE
-
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from tensorflow import keras
 # # # # # MODEL END ANALYSIS START # # # # # # 
 
 # This will extract all layers outputs from the model
@@ -19,7 +22,13 @@ def get_namedlayer(layer_name, cvae, x_train, y_train, model = 'encoder'):
     intermediate_output = intermediate_layer_model.predict([x_train, y_train]) # intermediate output is label, 1503 dense, reshape to 
     return intermediate_output
 
-
+def lat_dimension(z):
+    list = []
+    for i in range(len(z[1])):
+        temp = [x[i] for x in z]
+        tup = [max(temp), min(temp)]
+        list.append(tup)
+    return(list)
 
 ## Looking at variation between predictions and x_test sets (predictions are all very similar, 99%)
 
@@ -48,6 +57,7 @@ def var_boxplot(x_test, y_test, cvae):
     prediction = prediction[:,:,:,:,0]
     var_boxplot.prediction_results = structural_sim_data(prediction)
     import seaborn as sns
+    import matplotlib.pyplot as plt
     ax = sns.boxplot(data = [var_boxplot.x_test_results, var_boxplot.prediction_results])
     plt.show()
 
@@ -113,36 +123,6 @@ def lda(encoder, x_train, y_train, train_label):
 #    ax.get_yaxis().set_visible(False)
 #plt.show()
 
-from CVAE_3Dplots import plot_clusters
-plot_clusters(encoder, x_test, y_test, test_label, batch_size = 16)
-plot_clusters(encoder, x_train, y_train, train_label, batch_size = 16)
-
-#from CVAEplots import plot_clusters
-#plot_clusters(encoder, x_test, y_test, plot_labels_test, batch_size)
-from CVAE_3Dplots import reconstruction_plot
-reconstruction_plot(x_test, y_test, cvae, slice=2)
-# Plotting digits as wrong labels 
-# prbably female 2
-label = np.repeat(3, len(y_test))
-label_fake = to_categorical(label, num_classes=len(y_test[0]))
-reconstruction_plot(x_test, label_fake, cvae, slice= 2)
-# probably male 1
-label = np.repeat(0, len(y_test))
-label_fake = to_categorical(label, num_classes=len(y_test[0]))
-reconstruction_plot(x_test, label_fake, cvae, slice= 2)
-#from CVAEplots import lossplot
-#lossplot(history)
-
-
-#from CVAEplots import plot_latent_space
-#plot_latent_space(1, 1.5, 8, decoder)
-
-#from CVAEplots import latent_space_traversal
-#latent_space_traversal(10, 1.5, decoder)
-
-#from CVAEplots import plot_y_axis_change, plot_x_axis_change
-#plot_y_axis_change(1, 10, 1.5, decoder)
-#plot_x_axis_change(1, 10, 1.5, decoder)
 
 
 ###############################################################

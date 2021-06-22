@@ -23,40 +23,40 @@ def plot_clusters(encoder, x_test, y_test, labels, batch_size):
     plt.show()
 #plot_clusters(encoder, [x_test, y_test], plot_labels_test, batch_size)
 
-def digit_grid(decoder, n=30, figsize=15):
-    ''' Display a 2D grid of the digits in latent space, currently only works for VAE models '''
-    n = 15  # figure with 15x15 digits
-    scale = 1.0
-    digit_size = 28 # size of digits
-    figure = np.zeros((digit_size * n, digit_size * n))
-    # We will sample n points within [-15, 15] standard deviations
-    #linearly spaced coordinates corresponding to the 2D plot of digit classes in the latent space
-    grid_x = np.linspace(-scale, scale, n)
-    grid_y = np.linspace(-scale, scale, n)[::-1]
+#def digit_grid(decoder, n=30, figsize=15):
+#    ''' Display a 2D grid of the digits in latent space, currently only works for VAE models '''
+#    n = 15  # figure with 15x15 digits
+#    scale = 1.0
+#    digit_size = 28 # size of digits
+#    figure = np.zeros((digit_size * n, digit_size * n))
+#    # We will sample n points within [-15, 15] standard deviations
+#    #linearly spaced coordinates corresponding to the 2D plot of digit classes in the latent space
+#    grid_x = np.linspace(-scale, scale, n)
+#    grid_y = np.linspace(-scale, scale, n)[::-1]
 
-    for i, yi in enumerate(grid_x): 
-        for j, xi in enumerate(grid_y): # cycling through grid spots
-            z_sample = np.array([[xi, yi]]) # sampling from space
-            x_decoded = decoder.predict(z_sample) # taking prediction from that latent space
-            digit = x_decoded[0].reshape(digit_size, digit_size) # reshaping to plot
-            figure[i * digit_size: (i + 1) * digit_size,
-                   j * digit_size: (j + 1) * digit_size] = digit
+#    for i, yi in enumerate(grid_x): 
+#        for j, xi in enumerate(grid_y): # cycling through grid spots
+#            z_sample = np.array([[xi, yi]]) # sampling from space
+#            x_decoded = decoder.predict(z_sample) # taking prediction from that latent space
+#            digit = x_decoded[0].reshape(digit_size, digit_size) # reshaping to plot
+#            figure[i * digit_size: (i + 1) * digit_size,
+#                   j * digit_size: (j + 1) * digit_size] = digit
     
-    fig = plt.figure(figsize=(figsize, figsize))
-    start_range = digit_size // 2
-    end_range = n * digit_size + start_range
-    pixel_range = np.arange(start_range, end_range, digit_size)
-    sample_range_x = np.round(grid_x, 1)
-    sample_range_y = np.round(grid_y, 1)
-    fig.suptitle('2D grid of digits in latent space (VAE)', fontsize=10)
-    plt.xlabel("z[0]")
-    plt.xticks(pixel_range, sample_range_x)
-    plt.yticks(pixel_range, sample_range_y)
-    plt.xlabel("z[0]")
-    plt.ylabel("z[1]")
-    plt.imshow(figure, cmap="Greys_r")
-    plt.show()
-#digit_grid(decoder)
+#    fig = plt.figure(figsize=(figsize, figsize))
+#    start_range = digit_size // 2
+#    end_range = n * digit_size + start_range
+#    pixel_range = np.arange(start_range, end_range, digit_size)
+#    sample_range_x = np.round(grid_x, 1)
+#    sample_range_y = np.round(grid_y, 1)
+#    fig.suptitle('2D grid of digits in latent space (VAE)', fontsize=10)
+#    plt.xlabel("z[0]")
+#    plt.xticks(pixel_range, sample_range_x)
+#    plt.yticks(pixel_range, sample_range_y)
+#    plt.xlabel("z[0]")
+#    plt.ylabel("z[1]")
+#    plt.imshow(figure, cmap="Greys_r")
+#    plt.show()
+##digit_grid(decoder)
 
 # Plotting reconstruction vs actual
 def reconstruction_plot(x_test, y_test, model, slice, n=9):
@@ -171,26 +171,26 @@ def plot_latent_space(label, max_z, sides, decoder):
 
 
 # Plotting one axis change
-def latent_space_traversal(sides, max_z, decoder):
-    ''' Plotting latent space axis change vs labels on the other axis. 
-        Plotting y axis change '''
-    img_it = 0
-    fig = plt.figure(figsize = (20, 20))
-    fig.suptitle('Latent space traversal', fontsize=10)
+#def latent_space_traversal(sides, max_z, decoder):
+#    ''' Plotting latent space axis change vs labels on the other axis. 
+#        Plotting y axis change '''
+#    img_it = 0
+#    fig = plt.figure(figsize = (20, 20))
+#    fig.suptitle('Latent space traversal', fontsize=10)
     
-    for i in range(0, depth):
-        z1 = (((i / (sides-1)) * max_z)*2) - max_z
-        z_ = [z1, 0]
-        for j in range(0, sides):
-            vec = construct_numvec(j, z_)
-            decoded = decoder.predict(vec)
-            quard = int(math.sqrt(decoded.shape[1]))
-            ax = plt.subplot(sides, sides, 1 + img_it)
-            img_it +=1
-            plt.imshow(decoded[0][0].reshape(quard, quard), cmap = plt.cm.gray)
-            ax.get_xaxis().set_visible(False)
-            ax.get_yaxis().set_visible(False)  
-    plt.show()
+#    for i in range(0, depth):
+#        z1 = (((i / (sides-1)) * max_z)*2) - max_z
+#        z_ = [z1, 0]
+#        for j in range(0, sides):
+#            vec = construct_numvec(j, z_)
+#            decoded = decoder.predict(vec)
+#            quard = int(math.sqrt(decoded.shape[1]))
+#            ax = plt.subplot(sides, sides, 1 + img_it)
+#            img_it +=1
+#            plt.imshow(decoded[0][0].reshape(quard, quard), cmap = plt.cm.gray)
+#            ax.get_xaxis().set_visible(False)
+#            ax.get_yaxis().set_visible(False)  
+#    plt.show()
 #latent_space_traversal(10, 4, decoder)
 
 def get_axis_change(label, sides, max_z, decoder, latent_dim, slice_num):
@@ -208,11 +208,11 @@ def get_axis_change(label, sides, max_z, decoder, latent_dim, slice_num):
     return dec_list
 
 
-list = []
-for i in range(len(z[1])):
-    temp = [x[i] for x in z]
-    tup = [max(temp), min(temp)]
-    list.append(tup)
+#list = []
+#for i in range(len(z[1])):
+#    temp = [x[i] for x in z]
+#    tup = [max(temp), min(temp)]
+#    list.append(tup)
 
 
 def plot_axis_change(label, sides, max_z, decoder, latent_dim):
@@ -360,3 +360,6 @@ def process_mwheel(event, axis=0):
             c='white',
             horizontalalignment='left', verticalalignment='top')
     fig.canvas.draw()
+
+#slice = get_axis_change(1, 20, 2, decoder, 110, 2)
+#sliceview(slice)
