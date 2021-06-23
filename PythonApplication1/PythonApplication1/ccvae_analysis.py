@@ -88,6 +88,8 @@ def lda(encoder, x_train, y_train, train_label):
     y = np.array(train_label)
     z_pred = pd.DataFrame(z_pred)
     X_lda = sklearn_lda.fit_transform(z_pred, y)
+    score = sklearn_lda.score(z_pred, y)
+    print(score)
     label_dict = {1: 'Healthy', 2: 'At risk of SCZ', 3:'Depression', 4:'SCZ'}
 
 

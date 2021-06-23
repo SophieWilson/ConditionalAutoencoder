@@ -289,9 +289,11 @@ def lda_densityplot(X_lda, y, label, sklearn_lda):#
     import seaborn as sns 
     df = pd.DataFrame(X_lda)
     df['label'] = y
+    fig, axes = plt.subplots(1, 3, figsize=(12,6))
     for i in range(len(X_lda[0])):
-        plt.figure(i)
-        sns.displot(df, x=df.iloc[:,i], hue='label', kind='kde', fill = True, palette='tab10').fig.suptitle('LDA Dimension ' + str(i+1) + ', ' + label + ', explained variance:' + str(round(sklearn_lda.explained_variance_ratio_[i], 2)))
+        sns.kdeplot(x=df.iloc[:,i], hue = df['label'], palette='tab10', fill = True, ax = axes[i])    
+        title = 'Dimension ' + str(i+1) + ', explained variance:' + str(round(sklearn_lda.explained_variance_ratio_[i], 2))
+        axes[i].set_title(title)
     plt.show()
 
 
