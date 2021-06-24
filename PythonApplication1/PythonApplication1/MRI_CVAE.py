@@ -35,12 +35,12 @@ mri_types =['wp0', # whole brain
 
 niis = []
 labels = []
-num_subjs =100 # max 698
+num_subjs =690 # max 698
 
 # Read in MRI image stacks
 for i in range(num_subjs):
     row = filepath_df.iloc[i]
-    nii_path = row['wp0']
+    nii_path = row['wp1']
     nii = nib.load(nii_path)
     nii = nii.get_fdata()
     nii = nii[:, 101:117, :] # gives 16 slices 36-51, ones with most variance (<80% similarity) (detailed in slice_variance.csv)
@@ -88,10 +88,10 @@ y_train = to_categorical(y_train) # tuple num_patients * num_labels convert to o
 y_test = to_categorical(y_test) # tuple num_patients * num_labels
 
  # Autoencoder variables
-epochs = 10
-batch_size = 16
+epochs = 260
+batch_size = 8
 #intermediate_dim = 124
-latent_dim = 256
+latent_dim = 128
 n_y = y_train.shape[1] # 2
 n_x = x_train.shape[1] # 784
 n_z = 2 # depth?
@@ -120,9 +120,9 @@ x = layers.Conv3D(64, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.MaxPooling3D(pool_size=(2, 2, 2), padding ='same')(x) 
 #x = layers.SpatialDropout3D(0.2)(x)
 x = layers.Conv3D(128, (3, 3, 3), activation="relu",  padding="same")(x)
-x = layers.MaxPooling3D(pool_size=(3, 3, 3), padding='same')(x) 
+x = layers.MaxPooling3D(pool_size=(2, 2, 2), padding='same')(x) 
 #x = layers.SpatialDropout3D(0.3)(x)
-#x = layers.Conv3D(256, (3, 3, 3), activation="relu",  padding="same")(x)
+x = layers.Conv3D(256, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.Flatten()(x) # to feed into sampling function
 z_mean = layers.Dense(latent_dim, name="z_mean")(x)
 z_log_sigma = layers.Dense(latent_dim, name="z_log_var")(x)
@@ -134,14 +134,14 @@ encoder.summary()
 
 #### Make the decoder, takes the latent keras
 latent_inputs = keras.Input(shape=(latent_dim + n_y),) # changes based on depth 
-x =  layers.Dense(2*8*8*128, activation='relu')(latent_inputs)
-x = layers.Reshape((2, 8, 8, 128))(x)
-#x = layers.Conv3DTranspose(128, (3, 3, 3), activation="relu", padding="same")(x)
-x = layers.UpSampling3D((2,3,3))(x)
+x =  layers.Dense(2*5*5*256, activation='relu')(latent_inputs)
+x = layers.Reshape((2, 5, 5, 256))(x)
+x = layers.Conv3DTranspose(128, (3, 3, 3), activation="relu", padding="same")(x)
+x = layers.UpSampling3D((2,5,5))(x)
 #x = layers.SpatialDropout3D(0.3)(x)
 x = layers.Conv3DTranspose(64, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.UpSampling3D((2,2,2))(x)
-#x = layers.SpatialDropout3D(0.2)(x)
+x = layers.SpatialDropout3D(0.2)(x)
 x = layers.Conv3DTranspose(32, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.UpSampling3D((2,2,2))(x)
 #x = layers.SpatialDropout3D(0.3)(x)
@@ -166,7 +166,8 @@ cvae_loss = reconstruction_loss + kl_loss # mean was worse
 
 # Add loss and compile cvae model
 cvae.add_loss(cvae_loss)
-cvae.compile(optimizer='adam')
+opt = keras.optimizers.Adam(learning_rate = 0.001, beta_1 = 0.009)
+cvae.compile(optimizer=opt)
 
 # Tensorboard
 from keras.callbacks import TensorBoard
@@ -175,7 +176,7 @@ log_dir = "C:/Users/Mischa/sophie/MRI_CVAE" + datetime.datetime.now().strftime("
 tensorboard_callback = TensorBoard(log_dir=log_dir)
 
 # Adding early stopping
-es_callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=5)
+es_callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
 
 # fit the data 
 history = cvae.fit([x_train, y_train], x_train, epochs=epochs, batch_size=batch_size, validation_data = ([x_test, y_test], x_test), verbose = 2, callbacks=[tensorboard_callback, es_callback])
