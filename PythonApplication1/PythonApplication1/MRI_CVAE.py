@@ -35,7 +35,7 @@ mri_types =['wp0', # whole brain
 
 niis = []
 labels = []
-num_subjs =690 # max 698
+num_subjs =100 # max 698
 
 # Read in MRI image stacks
 for i in range(num_subjs):
@@ -88,7 +88,7 @@ y_train = to_categorical(y_train) # tuple num_patients * num_labels convert to o
 y_test = to_categorical(y_test) # tuple num_patients * num_labels
 
  # Autoencoder variables
-epochs = 260
+epochs = 26
 batch_size = 8
 #intermediate_dim = 124
 latent_dim = 128
@@ -122,7 +122,7 @@ x = layers.MaxPooling3D(pool_size=(2, 2, 2), padding ='same')(x)
 x = layers.Conv3D(128, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.MaxPooling3D(pool_size=(2, 2, 2), padding='same')(x) 
 #x = layers.SpatialDropout3D(0.3)(x)
-x = layers.Conv3D(256, (3, 3, 3), activation="relu",  padding="same")(x)
+#x = layers.Conv3D(256, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.Flatten()(x) # to feed into sampling function
 z_mean = layers.Dense(latent_dim, name="z_mean")(x)
 z_log_sigma = layers.Dense(latent_dim, name="z_log_var")(x)
@@ -134,10 +134,10 @@ encoder.summary()
 
 #### Make the decoder, takes the latent keras
 latent_inputs = keras.Input(shape=(latent_dim + n_y),) # changes based on depth 
-x =  layers.Dense(2*5*5*256, activation='relu')(latent_inputs)
-x = layers.Reshape((2, 5, 5, 256))(x)
-x = layers.Conv3DTranspose(128, (3, 3, 3), activation="relu", padding="same")(x)
-x = layers.UpSampling3D((2,5,5))(x)
+x =  layers.Dense(2*5*5*128, activation='relu')(latent_inputs)
+x = layers.Reshape((2, 5, 5, 128))(x)
+#x = layers.Conv3DTranspose(128, (3, 3, 3), activation="relu", padding="same")(x)
+x = layers.UpSampling3D((2,2,2))(x)
 #x = layers.SpatialDropout3D(0.3)(x)
 x = layers.Conv3DTranspose(64, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.UpSampling3D((2,2,2))(x)
@@ -166,7 +166,7 @@ cvae_loss = reconstruction_loss + kl_loss # mean was worse
 
 # Add loss and compile cvae model
 cvae.add_loss(cvae_loss)
-opt = keras.optimizers.Adam(learning_rate = 0.001, beta_1 = 0.009)
+opt = keras.optimizers.Adam(learning_rate = 0.001, beta_1 = 0.09)
 cvae.compile(optimizer=opt)
 
 # Tensorboard

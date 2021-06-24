@@ -89,7 +89,7 @@ def lda(encoder, x_train, y_train, train_label):
     z_pred = pd.DataFrame(z_pred)
     X_lda = sklearn_lda.fit_transform(z_pred, y)
     score = sklearn_lda.score(z_pred, y)
-    print(score)
+    print('accruacy', score)
     label_dict = {1: 'Healthy', 2: 'At risk of SCZ', 3:'Depression', 4:'SCZ'}
 
 
@@ -98,6 +98,13 @@ def lda(encoder, x_train, y_train, train_label):
 
     from CVAE_3Dplots import lda_densityplot
     lda_densityplot(X_lda, y, 'STUDYGROUP', sklearn_lda)
+
+    importance = sklearn_lda.scalings_
+    print(importance)
+    return importance
+
+     
+
 
 ## Plotting variation between latent space
 #img_it = 0

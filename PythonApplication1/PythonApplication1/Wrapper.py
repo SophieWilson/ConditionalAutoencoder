@@ -14,9 +14,9 @@ import MRI_CVAE as cvae
 
 # input data analysis
 
-# Analysing data variation 
+# Analysing data variation [takes ages so not running]
 from slice_variation_analysis import slice_analysis, latent_ssim_analysis
-slice_analysis(cvae.images) # returns a dataframe
+#slice_analysis(cvae.images) # returns a dataframe
 
 # plotting the input [WORKING]
 from CVAE_3Dplots import plot_slices, sliceview, process_mwheel
@@ -27,7 +27,6 @@ sliceview(cvae.x_test[1]) # shows mousewheel plot [WORKING]
 from CVAE_3Dplots import reconstruction_plot, lossplot
 reconstruction_plot(cvae.x_test, cvae.y_test, cvae.cvae, slice=2) # plot
 #lossplot(cvae.history) # plot [not working but not erroring
-
 prediction = cvae.cvae.predict([cvae.x_test, cvae.y_test]) # [WORKING]
 sliceview(prediction[0])
 
@@ -38,20 +37,20 @@ var_boxplot(cvae.x_test, cvae.y_test, cvae.cvae)
 # var_summary calls var_boxplot
 variation_summary(cvae.x_test)
 
-# Plotting reconstruction latent space clusters over 2D
-from CVAE_3Dplots import plot_clusters
-plot_clusters(cvae.encoder, cvae.x_test, cvae.y_test, cvae.test_label, batch_size = 16)
-plot_clusters(cvae.encoder, cvae.x_train, cvae.y_train, cvae.train_label, batch_size = 16)
-
-
 # Looking at latent space with LDA
 from ccvae_analysis import lda
-lda(cvae.encoder, cvae.x_train, cvae.y_train, cvae.train_label)
+#lda(cvae.encoder, cvae.x_train, cvae.y_train, cvae.train_label)
+lda(cvae.encoder, cvae.x_test, cvae.y_test, cvae.test_label)
+# Plotting reconstruction latent space clusters over 2D
+#from CVAE_3Dplots import plot_clusters
+#plot_clusters(cvae.encoder, cvae.x_test, cvae.y_test, cvae.test_label, batch_size = 16)
+#plot_clusters(cvae.encoder, cvae.x_train, cvae.y_train, cvae.train_label, batch_size = 16)
+
 
 # Changing latent space and plotting it
 # first getting max and min of latent space
 from ccvae_analysis import get_namedlayer, lat_dimension
-z = get_namedlayer('encoded', cvae.cvae, cvae.x_train, cvae.y_train, model = 'encoder')
+z = get_namedlayer('encoded', cvae.cvae, cvae.x_test, cvae.y_test, model = 'encoder')
 dim = lat_dimension(z)
 
 # Plotting axis change
@@ -88,3 +87,7 @@ plot_axis_change(0, 10, 2, cvae.decoder, 110)
 #from CVAEplots import plot_y_axis_change, plot_x_axis_change
 #plot_y_axis_change(1, 10, 1.5, decoder)
 #plot_x_axis_change(1, 10, 1.5, decoder)
+
+#fig, (ax1, ax2) = plt.subplots(1, 2)
+#ax1.plot(sliceview(lat_space))
+#ax2.plot(sliceview(lat_space))

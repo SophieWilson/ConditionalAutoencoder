@@ -23,40 +23,6 @@ def plot_clusters(encoder, x_test, y_test, labels, batch_size):
     plt.show()
 #plot_clusters(encoder, [x_test, y_test], plot_labels_test, batch_size)
 
-#def digit_grid(decoder, n=30, figsize=15):
-#    ''' Display a 2D grid of the digits in latent space, currently only works for VAE models '''
-#    n = 15  # figure with 15x15 digits
-#    scale = 1.0
-#    digit_size = 28 # size of digits
-#    figure = np.zeros((digit_size * n, digit_size * n))
-#    # We will sample n points within [-15, 15] standard deviations
-#    #linearly spaced coordinates corresponding to the 2D plot of digit classes in the latent space
-#    grid_x = np.linspace(-scale, scale, n)
-#    grid_y = np.linspace(-scale, scale, n)[::-1]
-
-#    for i, yi in enumerate(grid_x): 
-#        for j, xi in enumerate(grid_y): # cycling through grid spots
-#            z_sample = np.array([[xi, yi]]) # sampling from space
-#            x_decoded = decoder.predict(z_sample) # taking prediction from that latent space
-#            digit = x_decoded[0].reshape(digit_size, digit_size) # reshaping to plot
-#            figure[i * digit_size: (i + 1) * digit_size,
-#                   j * digit_size: (j + 1) * digit_size] = digit
-    
-#    fig = plt.figure(figsize=(figsize, figsize))
-#    start_range = digit_size // 2
-#    end_range = n * digit_size + start_range
-#    pixel_range = np.arange(start_range, end_range, digit_size)
-#    sample_range_x = np.round(grid_x, 1)
-#    sample_range_y = np.round(grid_y, 1)
-#    fig.suptitle('2D grid of digits in latent space (VAE)', fontsize=10)
-#    plt.xlabel("z[0]")
-#    plt.xticks(pixel_range, sample_range_x)
-#    plt.yticks(pixel_range, sample_range_y)
-#    plt.xlabel("z[0]")
-#    plt.ylabel("z[1]")
-#    plt.imshow(figure, cmap="Greys_r")
-#    plt.show()
-##digit_grid(decoder)
 
 # Plotting reconstruction vs actual
 def reconstruction_plot(x_test, y_test, model, slice, n=9):
@@ -82,6 +48,49 @@ def reconstruction_plot(x_test, y_test, model, slice, n=9):
     plt.show()
 
 #reconstruction_plot(x_test, y_test, cvae, 1)
+#def reconstruction_plot(x_test, y_test, model, slice, n=24):
+#    ''' Reconstruct model outputs vs actual digits
+#        n is number of digits, data is test (or train) image inputs, model is model'''
+#    prediction = model.predict([x_test[:n+1], y_test[:n+1]])
+#    #fig = plt.figure(6, 4)
+#    #fig.suptitle('Reconstructions vs input digits', fontsize=10)
+#    for i in range(1, 24 + 1):
+#        for j in range(4):
+#        # Display original
+#            slice_d = j * 4
+#            ax = plt.subplot(4, 6, i)
+#            plt.imshow(x_test[1][slice_d].reshape(x_test.shape[2], x_test.shape[2])) # sample i, input slice
+#            plt.gray()
+#            ax.get_xaxis().set_visible(False)
+#            ax.get_yaxis().set_visible(False)
+
+#        # Display reconstruction
+#        ax = plt.subplot(2, n, i + n)
+#        ax.set_title(y_test[i])
+#        plt.imshow(prediction[i][slice].reshape(prediction.shape[2],prediction.shape[2]))
+#        plt.gray()
+#        ax.get_xaxis().set_visible(False)
+#        ax.get_yaxis().set_visible(False)
+#    plt.show()
+
+for i in range(6):
+    ax = plt.subplot()
+
+#def plot_slices_vert(x_test, n = 4):
+#    ''' working '''
+#    fig = plt.figure(figsize=(2, 4))
+#    fig.suptitle('Input slices', fontsize=10)
+#    for i in range(2, n + 1):
+#        # Display original
+#        slice = i * 3
+#        ax = plt.subplot(4, 1, i)
+#        plt.imshow(x_test[1][slice]) # sample i, input slice
+#        ax = plt.subplot(4, 2, i)
+#        plt.imshow(x_test[10][slice])
+#        plt.gray()
+#        ax.get_xaxis().set_visible(False)
+#        ax.get_yaxis().set_visible(False)
+#    plt.show()
 
 def plot_slices(x_test, n = 15):
     ''' working '''
@@ -170,29 +179,7 @@ def plot_latent_space(label, max_z, sides, decoder):
     plt.show()
 
 
-# Plotting one axis change
-#def latent_space_traversal(sides, max_z, decoder):
-#    ''' Plotting latent space axis change vs labels on the other axis. 
-#        Plotting y axis change '''
-#    img_it = 0
-#    fig = plt.figure(figsize = (20, 20))
-#    fig.suptitle('Latent space traversal', fontsize=10)
-    
-#    for i in range(0, depth):
-#        z1 = (((i / (sides-1)) * max_z)*2) - max_z
-#        z_ = [z1, 0]
-#        for j in range(0, sides):
-#            vec = construct_numvec(j, z_)
-#            decoded = decoder.predict(vec)
-#            quard = int(math.sqrt(decoded.shape[1]))
-#            ax = plt.subplot(sides, sides, 1 + img_it)
-#            img_it +=1
-#            plt.imshow(decoded[0][0].reshape(quard, quard), cmap = plt.cm.gray)
-#            ax.get_xaxis().set_visible(False)
-#            ax.get_yaxis().set_visible(False)  
-#    plt.show()
-#latent_space_traversal(10, 4, decoder)
-
+# changing axis
 def get_axis_change(label, sides, max_z, decoder, latent_dim, slice_num):
     ''' feed into sliceview to get a scroll of latent space '''
     z_ = [0] * latent_dim
