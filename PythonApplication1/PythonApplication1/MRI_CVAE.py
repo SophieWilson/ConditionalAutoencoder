@@ -35,7 +35,7 @@ mri_types =['wp0', # whole brain
 
 niis = []
 labels = []
-num_subjs =290 # max 698
+num_subjs =100 # max 698
 
 # Read in MRI image stacks
 for i in range(num_subjs):
@@ -43,7 +43,7 @@ for i in range(num_subjs):
     nii_path = row['wp0']
     nii = nib.load(nii_path)
     nii = nii.get_fdata()
-    nii = nii[:, 35:51, :] # gives 16 slices 36-51, ones with most variance (<80% similarity) (detailed in slice_variance.csv)
+    nii = nii[:, 101:117, :] # gives 16 slices 36-51, ones with most variance (<80% similarity) (detailed in slice_variance.csv)
     labels.append(row['STUDYGROUP'])
     for j in range(nii.shape[1]):
         niis.append((nii[:,j,:]))
@@ -60,12 +60,12 @@ depth = len(nii[2])
 images = []
 for i in range(len(niis)):
     img = niis[i]
-    img = img[12:108, 2:98]
+    img = img[20:60, 50:90] # 12:108, 2:98 is whole brain
     images.append(img)
     
 images = np.asarray(images) # shape num_subjs*121*121
 # reshape to matrix in able to feed into network
-images = images.reshape(-1, depth, 96, 96) # num_subjs,depth,121,121,
+images = images.reshape(-1, depth, 40, 40) # num_subjs,depth,121,121, (96,96)
 
 ### min-max normalisation to rescale between 1 and 0 to improve accuracy
 m = np.max(images)
@@ -82,14 +82,14 @@ images = (images - mi) / (m - mi)
 
 # test train split (no labels for vae)
 from sklearn.model_selection import train_test_split
-x_train,x_test,y_train,y_test = train_test_split(images, labels, test_size=0.3, random_state=13, stratify = labels)
+x_train,x_test,y_train,y_test = train_test_split(images, labels, test_size=0.2, random_state=13, stratify = labels)
 train_label, test_label = y_train, y_test
 y_train = to_categorical(y_train) # tuple num_patients * num_labels convert to onehot
 y_test = to_categorical(y_test) # tuple num_patients * num_labels
 
  # Autoencoder variables
-epochs = 20
-batch_size = 8
+epochs = 10
+batch_size = 16
 #intermediate_dim = 124
 latent_dim = 256
 n_y = y_train.shape[1] # 2
@@ -115,13 +115,13 @@ label = keras.Input(shape=(n_y, )) # shape of length y_train
 encoder_inputs = keras.Input(shape=(depth, X, y, inchannel)) # it will add a None layer as batch size
 x = layers.Conv3D(32, (3, 3, 3), activation="relu", padding="same")(encoder_inputs) # relu turns negative values to 0
 x = layers.MaxPooling3D(pool_size=(2, 2, 2))(x) # max pooling 
-x = layers.SpatialDropout3D(0.3)(x)
+#x = layers.SpatialDropout3D(0.3)(x)
 x = layers.Conv3D(64, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.MaxPooling3D(pool_size=(2, 2, 2), padding ='same')(x) 
-x = layers.SpatialDropout3D(0.3)(x)
+#x = layers.SpatialDropout3D(0.2)(x)
 x = layers.Conv3D(128, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.MaxPooling3D(pool_size=(3, 3, 3), padding='same')(x) 
-x = layers.SpatialDropout3D(0.3)(x)
+#x = layers.SpatialDropout3D(0.3)(x)
 #x = layers.Conv3D(256, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.Flatten()(x) # to feed into sampling function
 z_mean = layers.Dense(latent_dim, name="z_mean")(x)
@@ -138,10 +138,10 @@ x =  layers.Dense(2*8*8*128, activation='relu')(latent_inputs)
 x = layers.Reshape((2, 8, 8, 128))(x)
 #x = layers.Conv3DTranspose(128, (3, 3, 3), activation="relu", padding="same")(x)
 x = layers.UpSampling3D((2,3,3))(x)
-x = layers.SpatialDropout3D(0.3)(x)
+#x = layers.SpatialDropout3D(0.3)(x)
 x = layers.Conv3DTranspose(64, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.UpSampling3D((2,2,2))(x)
-#x = layers.SpatialDropout3D(0.3)(x)
+#x = layers.SpatialDropout3D(0.2)(x)
 x = layers.Conv3DTranspose(32, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.UpSampling3D((2,2,2))(x)
 #x = layers.SpatialDropout3D(0.3)(x)
@@ -175,10 +175,17 @@ log_dir = "C:/Users/Mischa/sophie/MRI_CVAE" + datetime.datetime.now().strftime("
 tensorboard_callback = TensorBoard(log_dir=log_dir)
 
 # Adding early stopping
-es_callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
+es_callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=5)
 
 # fit the data 
 history = cvae.fit([x_train, y_train], x_train, epochs=epochs, batch_size=batch_size, validation_data = ([x_test, y_test], x_test), verbose = 2, callbacks=[tensorboard_callback, es_callback])
+
+
+#from ccvae_analysis import structural_sim_data, var_boxplot, variation_summary
+# var_boxplot calls structural_sim_data
+#var_boxplot(x_test, y_test, cvae)
+# var_summary calls var_boxplot
+#variation_summary(x_test)
 
 #import os
 #os.system("python %s %d %s" % (MRI_CVAE, x_test, y_test))
@@ -206,8 +213,8 @@ history = cvae.fit([x_train, y_train], x_train, epochs=epochs, batch_size=batch_
 
 ##from CVAEplots import plot_clusters
 ##plot_clusters(encoder, x_test, y_test, plot_labels_test, batch_size)
-#from CVAE_3Dplots import reconstruction_plot
-#reconstruction_plot(x_test, y_test, cvae, slice=2)
+from CVAE_3Dplots import reconstruction_plot
+reconstruction_plot(x_test, y_test, cvae, slice=2)
 ## Plotting digits as wrong labels 
 ## prbably female 2
 #label = np.repeat(3, len(y_test))
