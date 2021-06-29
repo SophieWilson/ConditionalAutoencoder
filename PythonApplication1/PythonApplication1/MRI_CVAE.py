@@ -35,7 +35,7 @@ mri_types =['wp0', # whole brain
 
 niis = []
 labels = []
-num_subjs =100 # max 698
+num_subjs =690 # max 698
 
 # Read in MRI image stacks
 for i in range(num_subjs):
@@ -88,10 +88,10 @@ y_train = to_categorical(y_train) # tuple num_patients * num_labels convert to o
 y_test = to_categorical(y_test) # tuple num_patients * num_labels
 
  # Autoencoder variables
-epochs = 26
+epochs = 70
 batch_size = 8
 #intermediate_dim = 124
-latent_dim = 128
+latent_dim = 100
 n_y = y_train.shape[1] # 2
 n_x = x_train.shape[1] # 784
 n_z = 2 # depth?
@@ -118,8 +118,8 @@ x = layers.MaxPooling3D(pool_size=(2, 2, 2))(x) # max pooling
 #x = layers.SpatialDropout3D(0.3)(x)
 x = layers.Conv3D(64, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.MaxPooling3D(pool_size=(2, 2, 2), padding ='same')(x) 
-#x = layers.SpatialDropout3D(0.2)(x)
-x = layers.Conv3D(128, (3, 3, 3), activation="relu",  padding="same")(x)
+x = layers.SpatialDropout3D(0.2)(x)
+#x = layers.Conv3D(128, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.MaxPooling3D(pool_size=(2, 2, 2), padding='same')(x) 
 #x = layers.SpatialDropout3D(0.3)(x)
 #x = layers.Conv3D(256, (3, 3, 3), activation="relu",  padding="same")(x)
@@ -136,9 +136,10 @@ encoder.summary()
 latent_inputs = keras.Input(shape=(latent_dim + n_y),) # changes based on depth 
 x =  layers.Dense(2*5*5*128, activation='relu')(latent_inputs)
 x = layers.Reshape((2, 5, 5, 128))(x)
+#x = layers.UpSampling3D((2,2,2))(x)
 #x = layers.Conv3DTranspose(128, (3, 3, 3), activation="relu", padding="same")(x)
 x = layers.UpSampling3D((2,2,2))(x)
-#x = layers.SpatialDropout3D(0.3)(x)
+x = layers.SpatialDropout3D(0.3)(x)
 x = layers.Conv3DTranspose(64, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.UpSampling3D((2,2,2))(x)
 x = layers.SpatialDropout3D(0.2)(x)
@@ -166,13 +167,13 @@ cvae_loss = reconstruction_loss + kl_loss # mean was worse
 
 # Add loss and compile cvae model
 cvae.add_loss(cvae_loss)
-opt = keras.optimizers.Adam(learning_rate = 0.001, beta_1 = 0.09)
+opt = keras.optimizers.Adam()
 cvae.compile(optimizer=opt)
 
 # Tensorboard
 from keras.callbacks import TensorBoard
 import datetime
-log_dir = "C:/Users/Mischa/sophie/MRI_CVAE" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+log_dir = "C:/Users/Mischa/sophie/29_06_21_onwards/MRI_CVAE" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 tensorboard_callback = TensorBoard(log_dir=log_dir)
 
 # Adding early stopping
@@ -192,7 +193,6 @@ history = cvae.fit([x_train, y_train], x_train, epochs=epochs, batch_size=batch_
 #os.system("python %s %d %s" % (MRI_CVAE, x_test, y_test))
 
 # # # # # MODEL END ANALYSIS START # # # # # # # # # # # # # # # # # # # # # # # # # # # ## # # # # 
-
 
 #from ccvae_analysis import get_namedlayer
 #encoded_output = get_namedlayer('encoded', cvae, x_train, y_train)

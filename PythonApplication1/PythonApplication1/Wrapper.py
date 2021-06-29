@@ -40,7 +40,9 @@ variation_summary(cvae.x_test)
 # Looking at latent space with LDA
 from ccvae_analysis import lda
 #lda(cvae.encoder, cvae.x_train, cvae.y_train, cvae.train_label)
-lda(cvae.encoder, cvae.x_test, cvae.y_test, cvae.test_label)
+scalings = lda(cvae.encoder, cvae.x_test, cvae.y_test, cvae.test_label)
+scalings_df = pd.DataFrame(scalings)
+df_scalings.to_csv(r'C:\Users\Mischa\Documents\Uni Masters\Diss project\Practise\MRI_cvae\df_scalings.csv')
 # Plotting reconstruction latent space clusters over 2D
 #from CVAE_3Dplots import plot_clusters
 #plot_clusters(cvae.encoder, cvae.x_test, cvae.y_test, cvae.test_label, batch_size = 16)

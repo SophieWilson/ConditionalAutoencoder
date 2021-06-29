@@ -138,7 +138,7 @@ def lossplot(history):
 #lossplot(history)
 
 # Reconstructing specific digits
-def construct_numvec(label, z = None, n_z = 256, n_y = 5):
+def construct_numvec(label, z = None, n_z = 128, n_y = 5):
     ''' make number vector, its called in plot_latent_space, must change n_z and n_y values  here if you want to fix a plot '''
     out = np.zeros((1, n_z + n_y))
     out[:, label + n_z] = 1.
@@ -189,7 +189,7 @@ def get_axis_change(label, sides, max_z, decoder, latent_dim, slice_num):
         z_.append(z1) # This is where the axis changes (right now its first, try to change that)
         vec = construct_numvec(label, z_)
         decoded = decoder.predict(vec)
-        decoded = decoded.reshape(16, 96, 96)
+        decoded = decoded.reshape(16, 40, 40)
         dec_list.append(decoded)
     dec_list = [x[slice_num] for x in dec_list]
     return dec_list
@@ -218,7 +218,7 @@ def plot_axis_change(label, sides, max_z, decoder, latent_dim):
         decoded = decoder.predict(vec)
         ax = plt.subplot(10, 1, 1 + img_it)
         img_it +=1
-        plt.imshow(decoded[0][0].reshape(96, 96), cmap = plt.cm.gray)
+        plt.imshow(decoded[0][0].reshape(40, 40), cmap = plt.cm.gray)
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)  
         z_.pop()
@@ -282,6 +282,8 @@ def lda_densityplot(X_lda, y, label, sklearn_lda):#
         title = 'Dimension ' + str(i+1) + ', explained variance:' + str(round(sklearn_lda.explained_variance_ratio_[i], 2))
         axes[i].set_title(title)
     plt.show()
+
+def lda_biplot():
 
 
 def sliceview(volume, axis=0, rot=1, show=True):

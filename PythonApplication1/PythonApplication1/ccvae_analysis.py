@@ -87,23 +87,24 @@ def lda(encoder, x_train, y_train, train_label):
     sklearn_lda = LinearDiscriminantAnalysis()
     y = np.array(train_label)
     z_pred = pd.DataFrame(z_pred)
-    X_lda = sklearn_lda.fit_transform(z_pred, y)
+    sklearn_lda = sklearn_lda.fit(z_pred, y)
+    X_lda = sklearn_lda.transform(z_pred)
     score = sklearn_lda.score(z_pred, y)
     print('accruacy', score)
     label_dict = {1: 'Healthy', 2: 'At risk of SCZ', 3:'Depression', 4:'SCZ'}
 
 
-    from CVAE_3Dplots import plot_lda_cluster
+    #from CVAE_3Dplots import plot_lda_cluster
     plot_lda_cluster(X_lda, y, 'LDA analysis of latent spgeace train set', label_dict, sklearn_lda)
 
-    from CVAE_3Dplots import lda_densityplot
+    #from CVAE_3Dplots import lda_densityplot
     lda_densityplot(X_lda, y, 'STUDYGROUP', sklearn_lda)
 
-    importance = sklearn_lda.scalings_
-    print(importance)
+    importance = sklearn_lda.coef_
+    #print(importance)
     return importance
 
-     
+#lda(encoder, x_test, y_test, test_label)     
 
 
 ## Plotting variation between latent space
