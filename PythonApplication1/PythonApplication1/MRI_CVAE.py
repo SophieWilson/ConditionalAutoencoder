@@ -82,7 +82,7 @@ images = (images - mi) / (m - mi)
 
 # test train split (no labels for vae)
 from sklearn.model_selection import train_test_split
-x_train,x_test,y_train,y_test = train_test_split(images, labels, test_size=0.2, random_state=13, stratify = labels)
+x_train,x_test,y_train,y_test = train_test_split(images, labels, test_size=0.1, random_state=13, stratify = labels)
 train_label, test_label = y_train, y_test
 y_train = to_categorical(y_train) # tuple num_patients * num_labels convert to onehot
 y_test = to_categorical(y_test) # tuple num_patients * num_labels
@@ -91,13 +91,13 @@ y_test = to_categorical(y_test) # tuple num_patients * num_labels
 epochs = 70
 batch_size = 8
 #intermediate_dim = 124
-latent_dim = 100
+latent_dim = 128
 n_y = y_train.shape[1] # 2
 n_x = x_train.shape[1] # 784
 n_z = 2 # depth?
 X, y = len(images[0][0][0]), len(images[0][0][0]) # should be 96, 96 messy fix though
 inchannel = 1
-origin_dim = 28*28 # why is this set
+origin_dim = 28*15 # why is this set
 
 
 # Make a sampling layer, this maps the MNIST digit to latent-space triplet (z_mean, z_log_var, z), this is how the bottleneck is displayed. 
@@ -158,7 +158,7 @@ cvae.summary()
 
 # use a custom loss function, this includes a KL divergence regularisation term which ensures that z is close to normal (0 mean, 1 sd)
 reconstruction_loss = keras.losses.binary_crossentropy(encoder_inputs, outputs)
-reconstruction_loss *= origin_dim
+reconstruction_loss *= origin_dim # smaller origin dim the more accurate it has to be? what is the downside, overfitting?
 reconstruction_loss = K.mean(reconstruction_loss) # mean to avoid incompatible shape error
 kl_loss = 1 + z_log_sigma - K.square(z_mean) - K.exp(z_log_sigma)
 kl_loss = K.sum(kl_loss, axis=-1)
@@ -182,6 +182,9 @@ es_callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
 # fit the data 
 history = cvae.fit([x_train, y_train], x_train, epochs=epochs, batch_size=batch_size, validation_data = ([x_test, y_test], x_test), verbose = 2, callbacks=[tensorboard_callback, es_callback])
 
+####################
+from CVAE_3Dplots import reconstruction_plot
+reconstruction_plot(x_test, y_test, cvae, slice=2)
 
 #from ccvae_analysis import structural_sim_data, var_boxplot, variation_summary
 # var_boxplot calls structural_sim_data
@@ -214,8 +217,7 @@ history = cvae.fit([x_train, y_train], x_train, epochs=epochs, batch_size=batch_
 
 ##from CVAEplots import plot_clusters
 ##plot_clusters(encoder, x_test, y_test, plot_labels_test, batch_size)
-from CVAE_3Dplots import reconstruction_plot
-reconstruction_plot(x_test, y_test, cvae, slice=2)
+
 ## Plotting digits as wrong labels 
 ## prbably female 2
 #label = np.repeat(3, len(y_test))

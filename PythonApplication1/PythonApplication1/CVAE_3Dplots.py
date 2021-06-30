@@ -283,7 +283,7 @@ def lda_densityplot(X_lda, y, label, sklearn_lda):#
         axes[i].set_title(title)
     plt.show()
 
-def lda_biplot():
+#def lda_biplot():
 
 
 def sliceview(volume, axis=0, rot=1, show=True):
@@ -354,3 +354,54 @@ def process_mwheel(event, axis=0):
 
 #slice = get_axis_change(1, 20, 2, decoder, 110, 2)
 #sliceview(slice)
+
+## t-SNE on lat space
+import time
+time_start = time.time()
+from sklearn.manifold import TSNE
+import seaborn as sns
+
+z_mean_pred, z_sig, z_label_pred, z_pred = encoder.predict([images, to_categorical(labels)], batch_size=16)
+#y = np.array(train_label)
+tsne = TSNE(n_components=2, verbose=1, perplexity=20, n_iter=10000, learning_rate=10)
+tsne_results = tsne.fit_transform(z_pred)
+
+## pca reduction
+from sklearn.decomposition import PCA
+data = pd.DataFrame(z_pred)
+pca = PCA(n_components = 50)
+pca_result = pca.fit_transform(data)
+print('Cumulative explained variation for 50 principal components: {}'.format(np.sum(pca.explained_variance_ratio_)))
+tsne_pca= tsne.fit_transform(pca_result)
+print('t-SNE done! Time elapsed: {} seconds'.format(time.time()-time_start))
+
+# lda reduction
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+sklearn_lda = LinearDiscriminantAnalysis()
+y = np.array(train_label)
+z_pred = pd.DataFrame(z_pred)
+X_lda = sklearn_lda.fit_transform(data, labels)
+#X_lda = sklearn_lda.transform(z_pred)
+tsne_lda= tsne.fit_transform(X_lda)
+print('t-SNE done! Time elapsed: {} seconds'.format(time.time()-time_start))
+
+# plot t-SNE
+data['tsne-2d-one'] = tsne_results[:,0]
+data['tsne-2d-two'] = tsne_results[:,1]
+data['y'] = labels
+plt.figure(figsize=(16,10))
+sns.scatterplot(
+    x="tsne-2d-one", y="tsne-2d-two",
+    hue="y",
+    palette=sns.color_palette("tab10", 4),
+    data=data,
+    legend="full",
+    alpha=0.7
+)
+plt.show()
+# t-sne on dataset (images)
+dat =pd.DataFrame(images).values
+tsne_results2 = tsne.fit_transform(dat)
+
+
+
