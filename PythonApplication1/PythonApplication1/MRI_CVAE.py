@@ -44,7 +44,7 @@ for i in range(num_subjs):
     nii = nib.load(nii_path)
     nii = nii.get_fdata()
     nii = nii[:, 101:117, :] # gives 16 slices 36-51, ones with most variance (<80% similarity) (detailed in slice_variance.csv)
-    labels.append(row['STUDYGROUP'])
+    labels.append(row['SEX_T0'])
     for j in range(nii.shape[1]):
         niis.append((nii[:,j,:]))
         
@@ -158,7 +158,7 @@ cvae.summary()
 
 # use a custom loss function, this includes a KL divergence regularisation term which ensures that z is close to normal (0 mean, 1 sd)
 reconstruction_loss = keras.losses.binary_crossentropy(encoder_inputs, outputs)
-reconstruction_loss *= origin_dim # smaller origin dim the more accurate it has to be? what is the downside, overfitting?
+reconstruction_loss *= origin_dim # how does this impact model
 reconstruction_loss = K.mean(reconstruction_loss) # mean to avoid incompatible shape error
 kl_loss = 1 + z_log_sigma - K.square(z_mean) - K.exp(z_log_sigma)
 kl_loss = K.sum(kl_loss, axis=-1)
@@ -167,7 +167,7 @@ cvae_loss = reconstruction_loss + kl_loss # mean was worse
 
 # Add loss and compile cvae model
 cvae.add_loss(cvae_loss)
-opt = keras.optimizers.Adam()
+opt = keras.optimizers.Adam(beta_1 = 0.009)
 cvae.compile(optimizer=opt)
 
 # Tensorboard
