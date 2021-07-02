@@ -138,7 +138,7 @@ def lossplot(history):
 #lossplot(history)
 
 # Reconstructing specific digits
-def construct_numvec(label, z = None, n_z = 128, n_y = 5):
+def construct_numvec(label, z = 3, n_z = 50, n_y = 3):
     ''' make number vector, its called in plot_latent_space, must change n_z and n_y values  here if you want to fix a plot '''
     out = np.zeros((1, n_z + n_y))
     out[:, label + n_z] = 1.
@@ -218,12 +218,46 @@ def plot_axis_change(label, sides, max_z, decoder, latent_dim):
         decoded = decoder.predict(vec)
         ax = plt.subplot(10, 1, 1 + img_it)
         img_it +=1
-        plt.imshow(decoded[0][0].reshape(40, 40), cmap = plt.cm.gray)
+        plt.imshow(decoded[0][15].reshape(40, 40), cmap = plt.cm.gray)
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)  
         z_.pop()
     plt.show()
 #plot_axis_change(1, 10, 2, decoder, 2)
+
+def plot_axis_change(label, sides, max_z, decoder, latent_dim):
+    ''' Plotting x axis change
+    sides = number of recons
+        have been using 1, 10, 1.5 for inputs, gives strange outputs '''
+    #from CVAE_3Dplots import construct_numvec
+    import matplotlib.gridspec as gridspec
+    img_it = 0
+    fig = plt.figure(figsize = (20, 8))
+    fig.suptitle('Varying axis', fontsize=10)
+    gs1 = gridspec.GridSpec(5, 10)
+    gs1.update(wspace=0.025, hspace=0.05) # set the spacing between axes. 
+    z_ = [0] * latent_dim
+    #plt.xlabel('one')
+    #plt.ylabel('work')
+    for j in range(6):
+        slice = j * 3
+        for i in range(0, 10):
+            z1 = (((i / (sides-1)) * max_z)*2) - max_z
+            z_.append(z1) # This is where the axis changes (right now its first, try to change that)
+            vec = construct_numvec(label, z_)
+            decoded = decoder.predict(vec)
+            ax = plt.subplot(6, 10, 1 + img_it)
+            img_it +=1
+            plt.imshow(decoded[0][slice].reshape(40, 40), cmap = plt.cm.gray)
+
+            #ax.get_xaxis().set_ticklabels([])
+            #ax.get_yaxis().set_ticklabels([])
+            plt.tick_params(labelcolor='none', which='both', top=False, bottom=False, left=False, right=False)
+
+            ax.set(ylabel = slice, xlabel = (round(z1, 1)))
+            z_.pop()
+
+    plt.show()
 
 # Plotting digits as wrong labels 
 # setting fake label
@@ -356,52 +390,53 @@ def process_mwheel(event, axis=0):
 #sliceview(slice)
 
 ## t-SNE on lat space
-import time
-time_start = time.time()
-from sklearn.manifold import TSNE
-import seaborn as sns
+def tsne(): # NOT FINISHED DONT IMPORT
+    import time
+    time_start = time.time()
+    from sklearn.manifold import TSNE
+    import seaborn as sns
 
-z_mean_pred, z_sig, z_label_pred, z_pred = encoder.predict([images, to_categorical(labels)], batch_size=16)
-#y = np.array(train_label)
-tsne = TSNE(n_components=2, verbose=1, perplexity=20, n_iter=10000, learning_rate=10)
-tsne_results = tsne.fit_transform(z_pred)
+    z_mean_pred, z_sig, z_label_pred, z_pred = encoder.predict([images, to_categorical(labels)], batch_size=16)
+    #y = np.array(train_label)
+    tsne = TSNE(n_components=2, verbose=1, perplexity=20, n_iter=10000, learning_rate=10)
+    tsne_results = tsne.fit_transform(z_pred)
 
-## pca reduction
-from sklearn.decomposition import PCA
-data = pd.DataFrame(z_pred)
-pca = PCA(n_components = 50)
-pca_result = pca.fit_transform(data)
-print('Cumulative explained variation for 50 principal components: {}'.format(np.sum(pca.explained_variance_ratio_)))
-tsne_pca= tsne.fit_transform(pca_result)
-print('t-SNE done! Time elapsed: {} seconds'.format(time.time()-time_start))
+    ## pca reduction
+    from sklearn.decomposition import PCA
+    data = pd.DataFrame(z_pred)
+    pca = PCA(n_components = 50)
+    pca_result = pca.fit_transform(data)
+    print('Cumulative explained variation for 50 principal components: {}'.format(np.sum(pca.explained_variance_ratio_)))
+    tsne_pca= tsne.fit_transform(pca_result)
+    print('t-SNE done! Time elapsed: {} seconds'.format(time.time()-time_start))
 
-# lda reduction
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-sklearn_lda = LinearDiscriminantAnalysis()
-y = np.array(train_label)
-z_pred = pd.DataFrame(z_pred)
-X_lda = sklearn_lda.fit_transform(data, labels)
-#X_lda = sklearn_lda.transform(z_pred)
-tsne_lda= tsne.fit_transform(X_lda)
-print('t-SNE done! Time elapsed: {} seconds'.format(time.time()-time_start))
+    # lda reduction
+    from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+    sklearn_lda = LinearDiscriminantAnalysis()
+    y = np.array(train_label)
+    z_pred = pd.DataFrame(z_pred)
+    X_lda = sklearn_lda.fit_transform(data, labels)
+    #X_lda = sklearn_lda.transform(z_pred)
+    tsne_lda= tsne.fit_transform(X_lda)
+    print('t-SNE done! Time elapsed: {} seconds'.format(time.time()-time_start))
 
-# plot t-SNE
-data['tsne-2d-one'] = tsne_results[:,0]
-data['tsne-2d-two'] = tsne_results[:,1]
-data['y'] = labels
-plt.figure(figsize=(16,10))
-sns.scatterplot(
-    x="tsne-2d-one", y="tsne-2d-two",
-    hue="y",
-    palette=sns.color_palette("tab10", 4),
-    data=data,
-    legend="full",
-    alpha=0.7
-)
-plt.show()
-# t-sne on dataset (images)
-dat =pd.DataFrame(images).values
-tsne_results2 = tsne.fit_transform(dat)
+    # plot t-SNE
+    data['tsne-2d-one'] = tsne_results[:,0]
+    data['tsne-2d-two'] = tsne_results[:,1]
+    data['y'] = labels
+    plt.figure(figsize=(16,10))
+    sns.scatterplot(
+        x="tsne-2d-one", y="tsne-2d-two",
+        hue="y",
+        palette=sns.color_palette("tab10", 4),
+        data=data,
+        legend="full",
+        alpha=0.7
+    )
+    plt.show()
+    # t-sne on dataset (images)
+    dat =pd.DataFrame(images).values
+    tsne_results2 = tsne.fit_transform(dat)
 
 
 
