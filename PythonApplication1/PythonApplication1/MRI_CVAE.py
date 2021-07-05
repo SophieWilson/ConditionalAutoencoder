@@ -35,7 +35,7 @@ mri_types =['wp0', # whole brain
 
 niis = []
 labels = []
-num_subjs =690 # max 698
+num_subjs =698 # max 698
 
 # Read in MRI image stacks
 for i in range(num_subjs):
@@ -44,7 +44,7 @@ for i in range(num_subjs):
     nii = nib.load(nii_path)
     nii = nii.get_fdata()
     nii = nii[:, 101:117, :] # gives 16 slices 36-51, ones with most variance (<80% similarity) (detailed in slice_variance.csv)
-    labels.append(row['SEX_T0'])
+    labels.append(row['STUDYGROUP'])
     for j in range(nii.shape[1]):
         niis.append((nii[:,j,:]))
         
@@ -72,6 +72,11 @@ m = np.max(images)
 mi = np.min(images) 
 images = (images - mi) / (m - mi)
 
+# Normalise y for patient ages
+#m = np.max(labels)
+#mi = np.min(labels) 
+#labels = (labels - mi) / (m - mi)
+
 #from CVAE_3Dplots import plot_slices
 #plot_slices(images)
 
@@ -82,17 +87,18 @@ images = (images - mi) / (m - mi)
 
 # test train split (no labels for vae)
 from sklearn.model_selection import train_test_split
-x_train,x_test,y_train,y_test = train_test_split(images, labels, test_size=0.1, random_state=13, stratify = labels)
+x_train,x_test,y_train,y_test = train_test_split(images, labels, test_size=0.2, random_state=13)
 train_label, test_label = y_train, y_test
 y_train = to_categorical(y_train) # tuple num_patients * num_labels convert to onehot
 y_test = to_categorical(y_test) # tuple num_patients * num_labels
 
  # Autoencoder variables
-epochs = 70
-batch_size = 8
+epochs = 100
+batch_size = 6
 #intermediate_dim = 124
-latent_dim = 128
+latent_dim =50
 n_y = y_train.shape[1] # 2
+#n_y = 1 # For continuous variablw
 n_x = x_train.shape[1] # 784
 n_z = 2 # depth?
 X, y = len(images[0][0][0]), len(images[0][0][0]) # should be 96, 96 messy fix though
@@ -109,7 +115,7 @@ def sampling(args):
     return z_mean + K.exp(z_log_sigma) * epsilon
 
 # Build the model
-from tensorflow.keras.layers import Input, BatchNormalization, Conv3D, Dense, Flatten, Lambda, Reshape, Conv3DTranspose, BatchNormalization, SpatialDropout3D
+from tensorflow.keras.layers import Input, BatchNormalization, Conv3D, Dense, Flatten, Lambda, Reshape, Conv3DTranspose, BatchNormalization, SpatialDropout3D, Dropout
 # Encoder
 label = keras.Input(shape=(n_y, )) # shape of length y_train
 encoder_inputs = keras.Input(shape=(depth, X, y, inchannel)) # it will add a None layer as batch size
@@ -118,7 +124,7 @@ x = layers.MaxPooling3D(pool_size=(2, 2, 2))(x) # max pooling
 #x = layers.SpatialDropout3D(0.3)(x)
 x = layers.Conv3D(64, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.MaxPooling3D(pool_size=(2, 2, 2), padding ='same')(x) 
-x = layers.SpatialDropout3D(0.2)(x)
+x = layers.SpatialDropout3D(0.3)(x)
 #x = layers.Conv3D(128, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.MaxPooling3D(pool_size=(2, 2, 2), padding='same')(x) 
 #x = layers.SpatialDropout3D(0.3)(x)
@@ -142,7 +148,7 @@ x = layers.UpSampling3D((2,2,2))(x)
 x = layers.SpatialDropout3D(0.3)(x)
 x = layers.Conv3DTranspose(64, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.UpSampling3D((2,2,2))(x)
-x = layers.SpatialDropout3D(0.2)(x)
+#x = layers.SpatialDropout3D(0.3)(x)
 x = layers.Conv3DTranspose(32, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.UpSampling3D((2,2,2))(x)
 #x = layers.SpatialDropout3D(0.3)(x)
@@ -167,7 +173,7 @@ cvae_loss = reconstruction_loss + kl_loss # mean was worse
 
 # Add loss and compile cvae model
 cvae.add_loss(cvae_loss)
-opt = keras.optimizers.Adam(beta_1 = 0.009)
+opt = keras.optimizers.Adam(learning_rate = 0.001, beta_1 = 0.009)
 cvae.compile(optimizer=opt)
 
 # Tensorboard
@@ -177,7 +183,7 @@ log_dir = "C:/Users/Mischa/sophie/29_06_21_onwards/MRI_CVAE" + datetime.datetime
 tensorboard_callback = TensorBoard(log_dir=log_dir)
 
 # Adding early stopping
-es_callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
+es_callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=7)
 
 # fit the data 
 history = cvae.fit([x_train, y_train], x_train, epochs=epochs, batch_size=batch_size, validation_data = ([x_test, y_test], x_test), verbose = 2, callbacks=[tensorboard_callback, es_callback])
