@@ -94,7 +94,7 @@ y_test = to_categorical(y_test) # tuple num_patients * num_labels
 # Y 0- healthy, 1- at risk, 2- recent depression, 4 - recent scz
  # Autoencoder variables
 epochs = 50
-batch_size = 4
+batch_size = 8
 #intermediate_dim = 124
 latent_dim =50
 n_y = y_train.shape[1] # 2
@@ -125,7 +125,7 @@ x = layers.MaxPooling3D(pool_size=(2, 2, 2))(x) # max pooling
 x = layers.Conv3D(64, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.MaxPooling3D(pool_size=(2, 2, 2), padding ='same')(x) 
 x = layers.SpatialDropout3D(0.3)(x)
-#x = layers.Conv3D(128, (3, 3, 3), activation="relu",  padding="same")(x)
+x = layers.Conv3D(128, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.MaxPooling3D(pool_size=(2, 2, 2), padding='same')(x) 
 #x = layers.SpatialDropout3D(0.3)(x)
 #x = layers.Conv3D(256, (3, 3, 3), activation="relu",  padding="same")(x)
@@ -145,10 +145,10 @@ x = layers.Reshape((2, 5, 5, 128))(x)
 #x = layers.UpSampling3D((2,2,2))(x)
 #x = layers.Conv3DTranspose(128, (3, 3, 3), activation="relu", padding="same")(x)
 x = layers.UpSampling3D((2,2,2))(x)
-x = layers.SpatialDropout3D(0.3)(x)
 x = layers.Conv3DTranspose(64, (3, 3, 3), activation="relu",  padding="same")(x)
+x = layers.SpatialDropout3D(0.3)(x)
 x = layers.UpSampling3D((2,2,2))(x)
-#x = layers.SpatialDropout3D(0.3)(x)
+#x = layers.SpatialDropout3D(0.2)(x)
 x = layers.Conv3DTranspose(32, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.UpSampling3D((2,2,2))(x)
 #x = layers.SpatialDropout3D(0.3)(x)
@@ -183,7 +183,7 @@ log_dir = "C:/Users/Mischa/sophie/29_06_21_onwards/MRI_CVAE" + datetime.datetime
 tensorboard_callback = TensorBoard(log_dir=log_dir)
 
 # Adding early stopping
-es_callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=7)
+es_callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
 
 # fit the data 
 history = cvae.fit([x_train, y_train], x_train, epochs=epochs, batch_size=batch_size, validation_data = ([x_test, y_test], x_test), verbose = 2, callbacks=[tensorboard_callback, es_callback])

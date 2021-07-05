@@ -59,6 +59,7 @@ def var_boxplot(x_test, y_test, cvae):
     import seaborn as sns
     import matplotlib.pyplot as plt
     ax = sns.boxplot(data = [var_boxplot.x_test_results, var_boxplot.prediction_results])
+    ax.set(xlabel = ['Input data', 'Reconstructions'])
     plt.show()
 
 def variation_summary(x_test):
@@ -96,7 +97,7 @@ def lda(encoder, x_train, y_train, train_label):
 
 
     #from CVAE_3Dplots import plot_lda_cluster
-    plot_lda_cluster(X_lda, y, 'LDA analysis of latent spgeace train set', label_dict, sklearn_lda)
+    plot_lda_cluster(X_lda, y, '', label_dict, sklearn_lda)
 
     #from CVAE_3Dplots import lda_densityplot
     lda_densityplot(X_lda, y, 'STUDYGROUP', sklearn_lda)
@@ -107,7 +108,7 @@ def lda(encoder, x_train, y_train, train_label):
     exp_var = sklearn_lda.explained_variance_ratio_.tolist()
     importance.loc[len(importance)] = exp_var
     importance = importance.abs() # removing all negative numbers
-    importance['totals'] = (importance[0] * importance.iloc[128,0]) +  (importance[1] * importance.iloc[128,1]) +  (importance[2] * importance.iloc[128,2])
+    importance['totals'] = (importance[0] * importance.iloc[50,0]) +  (importance[1] * importance.iloc[50,1]) +  (importance[2] * importance.iloc[50,2])
     importance = importance.sort_values(by = ['totals'], ascending = False)
     return importance
 

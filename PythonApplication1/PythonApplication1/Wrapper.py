@@ -63,7 +63,14 @@ sliceview(lat_space)
 plot_axis_change(0, 10, 2, cvae.decoder, 110)
 
 
-
+index = []
+for x in range(200):
+    num = random.randint(0, 697)
+    index.append(num)
+lda_test = np.take(images, index, 0) # subsetting images
+lda_test_label = [labels[i] for i in index] # subsetting labels
+lda_label_onehot = to_categorical(lda_test_label) # encoding labels (not sure why)
+lda_test = lda(encoder, lda_test, lda_label_onehot, lda_test_label)
 #from CVAEplots import plot_clusters
 #plot_clusters(encoder, x_test, y_test, plot_labels_test, batch_size)
 
@@ -93,3 +100,58 @@ plot_axis_change(0, 10, 2, cvae.decoder, 110)
 #fig, (ax1, ax2) = plt.subplots(1, 2)
 #ax1.plot(sliceview(lat_space))
 #ax2.plot(sliceview(lat_space))
+
+
+#def reconstruction_plot(x_test, y_test, model, title, n=6):
+#    ''' Reconstruct model outputs vs actual digits
+#        n is number of digits, data is test (or train) image inputs, model is model'''
+#    prediction = model.predict([x_test[:n+1], y_test[:n+1]])
+#    import matplotlib.gridspec as gridspec
+#    fig = plt.figure(figsize=(6, 6))
+#    fig.suptitle(title, fontsize=10)
+#    slice = [0, 1, 2, 4, 5, 8, 15]
+#    gs1 = gridspec.GridSpec(6, 6)
+#    gs1.update(wspace=0.000, hspace=0.000)
+#    for i in range(1, n + 1):
+#        # Display 1st line
+#        ax = plt.subplot(6, n, i)
+#        plt.imshow(x_test[i][slice[i]].reshape(x_test.shape[2], x_test.shape[2])) # sample i, input slice
+#        plt.gray()
+#        ax.get_xaxis().set_visible(False)
+#        ax.get_yaxis().set_visible(False)
+#        # Display 2nd line
+#        ax = plt.subplot(6, n, i + n)
+#        plt.imshow(x_test[i + n][slice[i]].reshape(x_test.shape[2], x_test.shape[2])) # sample i, input slice
+#        plt.gray()
+#        ax.get_xaxis().set_visible(False)
+#        ax.get_yaxis().set_visible(False)
+#        # 3
+#        ax = plt.subplot(6, n, i + n + n)
+#        plt.imshow(x_test[i + n +n][slice[i]].reshape(x_test.shape[2], x_test.shape[2])) # sample i, input slice
+#        plt.gray()
+#        ax.get_xaxis().set_visible(False)
+#        ax.get_yaxis().set_visible(False)
+#        # 4
+#        ax = plt.subplot(6, n, i + n + n +n)
+#        plt.imshow(x_test[i + n +n+n][slice[i]].reshape(x_test.shape[2], x_test.shape[2])) # sample i, input slice
+#        plt.gray()
+#        ax.get_xaxis().set_visible(False)
+#        ax.get_yaxis().set_visible(False)
+#        #5
+#        ax = plt.subplot(6, n, i + n + n +n+n)
+#        plt.imshow(x_test[i + n +n+n+n][slice[i]].reshape(x_test.shape[2], x_test.shape[2])) # sample i, input slice
+#        plt.gray()
+#        ax.get_xaxis().set_visible(False)
+#        ax.get_yaxis().set_visible(False)
+#        #6
+#        ax = plt.subplot(6, n, i + n + n +n+n+n)
+#        plt.imshow(x_test[i + n +n+n+n+n][slice[i]].reshape(x_test.shape[2], x_test.shape[2])) # sample i, input slice
+#        plt.gray()
+#        ax.get_xaxis().set_visible(False)
+#        ax.get_yaxis().set_visible(False)
+
+#    plt.show()
+
+#prediction = cvae.predict([x_test, y_test])
+#reconstruction_plot(x_test, y_test, 'Input data', cvae)
+#reconstruction_plot(prediction, y_test, 'Reconstructions', cvae)

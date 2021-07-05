@@ -36,21 +36,19 @@ mri_types =['wp0', # whole brain
 
 niis = []
 labels = []
-num_subjs =698 # max 698
+num_subjs =690 # max 698
 
-# Read in MRI image stacks
 for i in range(num_subjs):
     row = filepath_df.iloc[i]
     nii_path = row['wp1']
     nii = nib.load(nii_path)
     nii = nii.get_fdata()
-    nii = nii[:, 101:117, :] # gives 16 slices 36-51, ones with most variance (<80% similarity) (detailed in slice_variance.csv)
+    nii = nii[:, 35:51, :] # gives 16 slices 36-51, ones with most variance (<80% similarity) (detailed in slice_variance.csv)
     labels.append(row['STUDYGROUP'])
     for j in range(nii.shape[1]):
         niis.append((nii[:,j,:]))
         
 depth = len(nii[2])
-
 # Prepare to crop images
 #def crop_center(img,cropx,cropy):
 #    y,x = img.shape
@@ -61,12 +59,12 @@ depth = len(nii[2])
 images = []
 for i in range(len(niis)):
     img = niis[i]
-    img = img[12:108, 2:98] # 12:108, 2:98 is whole brain
+    img = img[20:100, 10:90] # 12:108, 2:98 is whole brain
     images.append(img)
     
 images = np.asarray(images) # shape num_subjs*121*121
 # reshape to matrix in able to feed into network
-images = images.reshape(-1, depth, 96, 96) # num_subjs,depth,121,121, (96,96)
+images = images.reshape(-1, depth, 80, 80) # num_subjs,depth,121,121, (96,96)
 
 ### min-max normalisation to rescale between 1 and 0 to improve accuracy
 m = np.max(images)
@@ -89,16 +87,16 @@ y_train = to_categorical(y_train) # tuple num_patients * num_labels convert to o
 y_test = to_categorical(y_test) # tuple num_patients * num_labels
 
  # Autoencoder variables
-epochs = 10
-batch_size = 16
+epochs = 200
+batch_size = 8
 #intermediate_dim = 124
-latent_dim = 150
+latent_dim = 250
 n_y = y_train.shape[1] # 2
 n_x = x_train.shape[1] # 784
 n_z = 2 # depth?
 X, y = len(images[0][0][0]), len(images[0][0][0]) # should be 96, 96 messy fix though
 inchannel = 1
-origin_dim = 28*15 # why is this set
+origin_dim = 28*28 # why is this set
 
 
 # Make a sampling layer, this maps the MNIST digit to latent-space triplet (z_mean, z_log_var, z), this is how the bottleneck is displayed. 
@@ -121,7 +119,7 @@ x = layers.Conv3D(64, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.MaxPooling3D(pool_size=(2, 2, 2), padding ='same')(x) 
 #x = layers.SpatialDropout3D(0.2)(x)
 x = layers.Conv3D(128, (3, 3, 3), activation="relu",  padding="same")(x)
-x = layers.MaxPooling3D(pool_size=(3, 3, 3), padding='same')(x) 
+x = layers.MaxPooling3D(pool_size=(2, 2, 2), padding='same')(x) 
 #x = layers.SpatialDropout3D(0.3)(x)
 #x = layers.Conv3D(256, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.Flatten()(x) # to feed into sampling function
@@ -135,10 +133,10 @@ encoder.summary()
 
 #### Make the decoder, takes the latent keras
 latent_inputs = keras.Input(shape=(latent_dim + n_y),) # changes based on depth 
-x =  layers.Dense(2*8*8*128, activation='relu')(latent_inputs)
-x = layers.Reshape((2, 8, 8, 128))(x)
+x =  layers.Dense(2*10*10*128, activation='relu')(latent_inputs)
+x = layers.Reshape((2, 10, 10, 128))(x)
 #x = layers.Conv3DTranspose(128, (3, 3, 3), activation="relu", padding="same")(x)
-x = layers.UpSampling3D((2,3,3))(x)
+x = layers.UpSampling3D((2,2,2))(x)
 #x = layers.SpatialDropout3D(0.3)(x)
 x = layers.Conv3DTranspose(64, (3, 3, 3), activation="relu",  padding="same")(x)
 x = layers.UpSampling3D((2,2,2))(x)
@@ -167,13 +165,13 @@ cvae_loss = reconstruction_loss + kl_loss # mean was worse
 
 # Add loss and compile cvae model
 cvae.add_loss(cvae_loss)
-opt = keras.optimizers.Adam(learning_rate = 0.001, beta_1 = 0.009)
+opt = keras.optimizers.Adam(learning_rate = 0.0001, beta_1 = 0.009)
 cvae.compile(optimizer=opt)
 
 # Tensorboard
 from keras.callbacks import TensorBoard
 import datetime
-log_dir = "C:/Users/Mischa/sophie/MRI_CVAE" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+log_dir = "C:/Users/Mischa/sophie/29_06_21_onwards/wholebrain" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 tensorboard_callback = TensorBoard(log_dir=log_dir)
 
 # Adding early stopping
