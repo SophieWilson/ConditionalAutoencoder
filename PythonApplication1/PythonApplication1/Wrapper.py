@@ -14,7 +14,7 @@ import MRI_CVAE as cvae
 
 # input data analysis
 
-# Analysing data variation [takes ages so not running]
+# Analysing data variation [takes ages so not running] [run for wholebrain only]
 from slice_variation_analysis import slice_analysis, latent_ssim_analysis
 #slice_analysis(cvae.images) # returns a dataframe
 

@@ -91,10 +91,10 @@ x_train,x_test,y_train,y_test = train_test_split(images, labels, test_size=0.2, 
 train_label, test_label = y_train, y_test
 y_train = to_categorical(y_train) # tuple num_patients * num_labels convert to onehot
 y_test = to_categorical(y_test) # tuple num_patients * num_labels
-
+# Y 0- healthy, 1- at risk, 2- recent depression, 4 - recent scz
  # Autoencoder variables
-epochs = 100
-batch_size = 6
+epochs = 50
+batch_size = 4
 #intermediate_dim = 124
 latent_dim =50
 n_y = y_train.shape[1] # 2
