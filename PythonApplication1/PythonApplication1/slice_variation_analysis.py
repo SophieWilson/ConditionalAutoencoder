@@ -71,6 +71,7 @@ def latent_ssim_analysis(label, num_recon, max_z, decoder, latent_dim):
         from skimage.metrics import structural_similarity as ssim
         print(len(data[0]))
         results = []   
+        diff_list = []
         temp = []
         count = 0
         for k in range(int(len(data))): # looping through latent dim 
@@ -83,27 +84,29 @@ def latent_ssim_analysis(label, num_recon, max_z, decoder, latent_dim):
                         temp.append(score)
                         #print(len(temp))
             results.append(temp)
+            diff_list.append(diff)
             temp = [] 
             print(count)
             count+=1
-        return results
+        return results, diff_list
 
     lat_var = latent_space_var()
     # lat_var is of shape 30, 10, (16, 96, 96), 30 dimensions, 10 recons 
-    latent_ssim = structural_sim_latent(lat_var)
+    latent_ssim, diff_list = structural_sim_latent(lat_var)
     latent_slice_var = []
     counter = 0
     import statistics
     for i in range(len(latent_ssim)):
+        print(latent_ssim)
         counter += 1
         latent_slice_var.append([i, statistics.mean(latent_ssim[i])])
         #if (counter%10 == 0):
             #print(counter)
 
     latent_df = pd.DataFrame(latent_slice_var)
-    return latent_df
+    return latent_df, diff_list
 
-#latent_ssim_analysis(0, 10, 4, decoder, 50)
+#lat_df, diff = latent_ssim_analysis(0, 10, 4, decoder, 50)
 
 #def latent_space_var(label, sides, max_z, decoder, latent_dim):
 #    decoded_list = [[] for x in range(latent_dim)]

@@ -190,7 +190,7 @@ history = cvae.fit([x_train, y_train], x_train, epochs=epochs, batch_size=batch_
 
 ####################
 from CVAE_3Dplots import reconstruction_plot
-reconstruction_plot(x_test, y_test, cvae, slice=2)
+reconstruction_plot(x_test, y_test, cvae)
 
 #from ccvae_analysis import structural_sim_data, var_boxplot, variation_summary
 # var_boxplot calls structural_sim_data

@@ -25,72 +25,114 @@ def plot_clusters(encoder, x_test, y_test, labels, batch_size):
 
 
 # Plotting reconstruction vs actual
-def reconstruction_plot(x_test, y_test, model, slice, n=9):
+def reconstruction_plot_old(x_test, y_test, model, n=6):
     ''' Reconstruct model outputs vs actual digits
         n is number of digits, data is test (or train) image inputs, model is model'''
     prediction = model.predict([x_test[:n+1], y_test[:n+1]])
     fig = plt.figure(figsize=(20, 4))
     fig.suptitle('Reconstructions vs input digits', fontsize=10)
+    slice = [0, 1, 2, 4, 5, 8, 15]
     for i in range(1, n + 1):
         # Display original
         ax = plt.subplot(2, n, i)
-        plt.imshow(x_test[i][slice].reshape(x_test.shape[2], x_test.shape[2])) # sample i, input slice
+        plt.imshow(x_test[i][slice[i]].reshape(x_test.shape[2], x_test.shape[2])) # sample i, input slice
         plt.gray()
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
+
         # Display reconstruction
         ax = plt.subplot(2, n, i + n)
         ax.set_title(y_test[i])
-        plt.imshow(prediction[i][slice].reshape(prediction.shape[2],prediction.shape[2]))
+        plt.imshow(prediction[i][slice[i]].reshape(prediction.shape[2],prediction.shape[2]))
         plt.gray()
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
     plt.show()
 
-#reconstruction_plot(x_test, y_test, cvae, 1)
-#def reconstruction_plot(x_test, y_test, model, slice, n=24):
-#    ''' Reconstruct model outputs vs actual digits
-#        n is number of digits, data is test (or train) image inputs, model is model'''
-#    prediction = model.predict([x_test[:n+1], y_test[:n+1]])
-#    #fig = plt.figure(6, 4)
-#    #fig.suptitle('Reconstructions vs input digits', fontsize=10)
-#    for i in range(1, 24 + 1):
-#        for j in range(4):
-#        # Display original
-#            slice_d = j * 4
-#            ax = plt.subplot(4, 6, i)
-#            plt.imshow(x_test[1][slice_d].reshape(x_test.shape[2], x_test.shape[2])) # sample i, input slice
-#            plt.gray()
-#            ax.get_xaxis().set_visible(False)
-#            ax.get_yaxis().set_visible(False)
+def reconstruction_plot(x_test, y_test, model, n=6):
+    ''' Reconstruct model outputs vs actual digits
+        n is number of digits, data is test (or train) image inputs, model is model'''
+    prediction = model.predict([x_test[:n+1], y_test[:n+1]])
+    import matplotlib.gridspec as gridspec
+    fig = plt.figure(figsize=(6, 6))
+    #fig.suptitle(title, fontsize=10)
+    slice = [0, 1, 2, 4, 5, 8, 15]
+    gs1 = gridspec.GridSpec(6, 6)
+    gs1.update(wspace=0.000, hspace=0.000)
+    for i in range(1, n + 1):
+        # Display 1st line
+        ax = plt.subplot(6, n, i)
+        plt.imshow(x_test[i][slice[i]].reshape(x_test.shape[2], x_test.shape[2])) # sample i, input slice
+        plt.gray()
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+        # Display 2nd line
+        ax = plt.subplot(6, n, i + n)
+        plt.imshow(x_test[i + n][slice[i]].reshape(x_test.shape[2], x_test.shape[2])) # sample i, input slice
+        plt.gray()
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+        # 3
+        ax = plt.subplot(6, n, i + n + n)
+        plt.imshow(x_test[i + n +n][slice[i]].reshape(x_test.shape[2], x_test.shape[2])) # sample i, input slice
+        plt.gray()
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+        # 4
+        ax = plt.subplot(6, n, i + n + n +n)
+        plt.imshow(x_test[i + n +n+n][slice[i]].reshape(x_test.shape[2], x_test.shape[2])) # sample i, input slice
+        plt.gray()
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+        #5
+        ax = plt.subplot(6, n, i + n + n +n+n)
+        plt.imshow(x_test[i + n +n+n+n][slice[i]].reshape(x_test.shape[2], x_test.shape[2])) # sample i, input slice
+        plt.gray()
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+        #6
+        ax = plt.subplot(6, n, i + n + n +n+n+n)
+        plt.imshow(x_test[i + n +n+n+n+n][slice[i]].reshape(x_test.shape[2], x_test.shape[2])) # sample i, input slice
+        plt.gray()
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
 
-#        # Display reconstruction
-#        ax = plt.subplot(2, n, i + n)
-#        ax.set_title(y_test[i])
-#        plt.imshow(prediction[i][slice].reshape(prediction.shape[2],prediction.shape[2]))
-#        plt.gray()
-#        ax.get_xaxis().set_visible(False)
-#        ax.get_yaxis().set_visible(False)
-#    plt.show()
+    plt.show()
 
-for i in range(6):
-    ax = plt.subplot()
+prediction = cvae.predict([x_test, y_test])
+reconstruction_plot(x_test, y_test, 'Input data', cvae)
+reconstruction_plot(prediction, y_test, 'Reconstructions', cvae)
 
-#def plot_slices_vert(x_test, n = 4):
-#    ''' working '''
-#    fig = plt.figure(figsize=(2, 4))
-#    fig.suptitle('Input slices', fontsize=10)
-#    for i in range(2, n + 1):
-#        # Display original
-#        slice = i * 3
-#        ax = plt.subplot(4, 1, i)
-#        plt.imshow(x_test[1][slice]) # sample i, input slice
-#        ax = plt.subplot(4, 2, i)
-#        plt.imshow(x_test[10][slice])
-#        plt.gray()
-#        ax.get_xaxis().set_visible(False)
-#        ax.get_yaxis().set_visible(False)
-#    plt.show()
+def plot_slices_vert(x_test, n = 4, ):
+    ''' working, x_test is data, n is number displayed '''
+    fig = plt.figure(figsize=(5, 13))
+    fig.suptitle('Input slices', fontsize=10)
+    for i in range(1, n + 1):
+        # Display original
+        ax = plt.subplot(n, 1, i)
+        plt.imshow(x_test[1][i]) # sample i, input slice
+        plt.gray()
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+    plt.show()
+
+
+def plot_ssim_diff(data, diff_slice, n = 6):
+    ''' working, x_test is data, n is number displayed, this works with output of latent_ssim_analysis to make one plot '''
+    fig = plt.figure(figsize=(5, 13))
+    fig.suptitle('Latent space differences', fontsize=10)
+    slice = [0, 3, 6, 9, 12, 15]
+    for i in range(1, n + 1):
+        # Display original
+        ax = plt.subplot(n, 1, i)
+        plt.imshow(data[diff_slice][slice[i-1]]) # sample i-1 (to start from 0), input slice
+        plt.gray()
+        #ax.set(ylabel = slice)
+        plt.tick_params(labelcolor='none', which='both', top=False, bottom=False, left=False, right=False)
+        ax.set(ylabel = slice[i-1])
+    plt.show()
+
+
 
 def plot_slices(x_test, n = 15):
     ''' working '''
@@ -138,7 +180,7 @@ def lossplot(history):
 #lossplot(history)
 
 # Reconstructing specific digits
-def construct_numvec(label, z = 3, n_z = 50, n_y = 3):
+def construct_numvec(label, z = 3, n_z = 50, n_y = 5):
     ''' make number vector, its called in plot_latent_space, must change n_z and n_y values  here if you want to fix a plot '''
     out = np.zeros((1, n_z + n_y))
     out[:, label + n_z] = 1.
@@ -194,35 +236,27 @@ def get_axis_change(label, sides, max_z, decoder, latent_dim, slice_num):
     dec_list = [x[slice_num] for x in dec_list]
     return dec_list
 
-
-#list = []
-#for i in range(len(z[1])):
-#    temp = [x[i] for x in z]
-#    tup = [max(temp), min(temp)]
-#    list.append(tup)
-
-
-def plot_axis_change(label, sides, max_z, decoder, latent_dim):
-    ''' Plotting x axis change
-    sides = number of recons
-        have been using 1, 10, 1.5 for inputs, gives strange outputs '''
-    #from CVAE_3Dplots import construct_numvec
-    img_it = 0
-    fig = plt.figure(figsize = (4, 20))
-    fig.suptitle('Varying axis', fontsize=10)
-    z_ = [0] * latent_dim
-    for i in range(0, sides):
-        z1 = (((i / (sides-1)) * max_z)*2) - max_z
-        z_.append(z1) # This is where the axis changes (right now its first, try to change that)
-        vec = construct_numvec(label, z_)
-        decoded = decoder.predict(vec)
-        ax = plt.subplot(10, 1, 1 + img_it)
-        img_it +=1
-        plt.imshow(decoded[0][15].reshape(40, 40), cmap = plt.cm.gray)
-        ax.get_xaxis().set_visible(False)
-        ax.get_yaxis().set_visible(False)  
-        z_.pop()
-    plt.show()
+#def plot_axis_change(label, sides, max_z, decoder, latent_dim):
+#    ''' Plotting x axis change
+#    sides = number of recons
+#        have been using 1, 10, 1.5 for inputs, gives strange outputs '''
+#    #from CVAE_3Dplots import construct_numvec
+#    img_it = 0
+#    fig = plt.figure(figsize = (4, 20))
+#    fig.suptitle('Varying axis', fontsize=10)
+#    z_ = [0] * latent_dim
+#    for i in range(0, sides):
+#        z1 = (((i / (sides-1)) * max_z)*2) - max_z
+#        z_.append(z1) # This is where the axis changes (right now its first, try to change that)
+#        vec = construct_numvec(label, z_)
+#        decoded = decoder.predict(vec)
+#        ax = plt.subplot(10, 1, 1 + img_it)
+#        img_it +=1
+#        plt.imshow(decoded[0][15].reshape(40, 40), cmap = plt.cm.gray)
+#        ax.get_xaxis().set_visible(False)
+#        ax.get_yaxis().set_visible(False)  
+#        z_.pop()
+#    plt.show()
 #plot_axis_change(1, 10, 2, decoder, 2)
 
 def plot_axis_change(label, sides, max_z, decoder, latent_dim):
@@ -259,6 +293,68 @@ def plot_axis_change(label, sides, max_z, decoder, latent_dim):
 
     plt.show()
 
+
+def plot_axis_change_grid(label, sides, max_z, decoder, latent_dim):
+    ''' Plotting x axis change
+    sides = number of recons
+        have been using 1, 10, 1.5 for inputs, gives strange outputs '''
+    #from CVAE_3Dplots import construct_numvec
+    import matplotlib.gridspec as gridspec
+    img_it = 0
+    fig = plt.figure(figsize = (8, 10))
+    #fig.suptitle('Varying axis', fontsize=10)
+    gs1 = gridspec.GridSpec(5, 10)
+    gs1.update(wspace=0.1, hspace=0.1) # set the spacing between axes. 
+    z_ = [0] * latent_dim
+    #plt.xlabel('one')
+    #plt.ylabel('work')
+    for j in range(6):
+        slice = j * 3
+        for i in range(0, 11):
+            z1 = (((i / (sides-1)) * max_z)*2) - max_z
+            z_.append(z1) # This is where the axis changes (right now its first, try to change that)
+            vec = construct_numvec(label, z_)
+            decoded = decoder.predict(vec)
+            ax = plt.subplot(6, 11, 1 + img_it)
+            img_it +=1
+            if (i == 0):
+                first = decoded[0][slice].reshape(40, 40)
+            if (i == 10):
+                last = decoded[0][slice].reshape(40, 40)
+            if (img_it % 11 == 0):
+                score, diff = ssim(first, last, full = True)
+                plt.imshow(diff.reshape(40, 40), cmap = plt.cm.gray)
+                plt.tick_params(labelcolor='none', which='both', top=False, bottom=False, left=False, right=False)
+            else:
+                plt.imshow(decoded[0][slice].reshape(40, 40), cmap = plt.cm.gray)
+
+            #ax.get_xaxis().set_ticklabels([])
+            #ax.get_yaxis().set_ticklabels([])
+            plt.tick_params(labelcolor='none', which='both', top=False, bottom=False, left=False, right=False)
+
+            #ax.set(ylabel = slice, xlabel = (round(z1, 1)))
+            z_.pop()
+
+    plt.show()
+
+#de_list = plot_axis_change_grid(1, 10, 2, decoder, 8)
+
+
+
+def diff_gridplot(data,  n = 6):
+    ''' working, x_test is data, n is number displayed, this works with output of latent_ssim_analysis to make one plot '''
+    fig = plt.figure(figsize=(5, 13))
+    fig.suptitle('Latent space differences', fontsize=10)
+    #slice = [0, 3, 6, 9, 12, 15]
+    for i in range(1, n + 1):
+        # Display original
+        ax = plt.subplot(n, 1, i)
+        plt.imshow(data[i-1]) # sample i-1 (to start from 0), input slice
+        plt.gray()
+        #ax.set(ylabel = slice)
+        plt.tick_params(labelcolor='none', which='both', top=False, bottom=False, left=False, right=False)
+        ax.set(ylabel = i-1)
+    plt.show()
 # Plotting digits as wrong labels 
 # setting fake label
 #label = np.repeat(7, 10000)
@@ -267,13 +363,14 @@ def plot_axis_change(label, sides, max_z, decoder, latent_dim):
 def plot_lda_cluster(X, y, title, label_dict, sklearn_lda):
     ''' Plots LDA clusters within the subspace, LDA function must be run for this plot to work '''
     #X_lda = LDA(encoder, train_label, label_dict) # run the LDA analysis
+
     ax = plt.subplot(111)
     for label,marker,color in zip(
         range(1,5),('v','^', 's', 'o'),('purple','blue', 'red', 'green')):
 
         plt.scatter(x=X[:,0][y == label],
                     y=X[:,1][y == label] * -1, # flip the figure
-                    marker=marker,
+                  
                     color=color,
                     alpha=0.5,
                     label = label_dict[label])
@@ -281,7 +378,7 @@ def plot_lda_cluster(X, y, title, label_dict, sklearn_lda):
     plt.xlabel('LD1')
     plt.ylabel('LD2')
     leg = plt.legend(loc='upper right', fancybox=True)
-    leg.get_frame().set_alpha(0.5)
+    leg.get_frame().set_alpha(0.2)
     plt.suptitle(title)
     plt.title('Explained variance of LD1+LD2 = ' + str(round((sklearn_lda.explained_variance_ratio_[1] + sklearn_lda.explained_variance_ratio_[0]), 2)), fontsize=10)
     # hide axis ticks
@@ -437,6 +534,3 @@ def tsne(): # NOT FINISHED DONT IMPORT
     # t-sne on dataset (images)
     dat =pd.DataFrame(images).values
     tsne_results2 = tsne.fit_transform(dat)
-
-
-

@@ -25,7 +25,8 @@ sliceview(cvae.x_test[1]) # shows mousewheel plot [WORKING]
 
 # # # Model output reconstructions [WORKING]
 from CVAE_3Dplots import reconstruction_plot, lossplot
-reconstruction_plot(cvae.x_test, cvae.y_test, cvae.cvae, slice=2) # plot
+reconstruction_plot_old(cvae.x_test, cvae.y_test, cvae.cvae, slice=2) # plot
+reconstruction_plot(cvae.x_test, cvae.y_test, cvae.cvae) # superior plot
 #lossplot(cvae.history) # plot [not working but not erroring
 prediction = cvae.cvae.predict([cvae.x_test, cvae.y_test]) # [WORKING]
 sliceview(prediction[0])
@@ -48,6 +49,8 @@ df_scalings.to_csv(r'C:\Users\Mischa\Documents\Uni Masters\Diss project\Practise
 #plot_clusters(cvae.encoder, cvae.x_test, cvae.y_test, cvae.test_label, batch_size = 16)
 #plot_clusters(cvae.encoder, cvae.x_train, cvae.y_train, cvae.train_label, batch_size = 16)
 
+# Analysing lat space variance
+lats_df, diff = latent_ssim_analysis(0, 10, 4, decoder, 50)
 
 # Changing latent space and plotting it
 # first getting max and min of latent space
