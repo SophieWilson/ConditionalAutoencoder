@@ -74,6 +74,14 @@ lda_test = np.take(images, index, 0) # subsetting images
 lda_test_label = [labels[i] for i in index] # subsetting labels
 lda_label_onehot = to_categorical(lda_test_label) # encoding labels (not sure why)
 lda_test = lda(encoder, lda_test, lda_label_onehot, lda_test_label)
+
+# latent space grids (for important latent space dimensions found in above lda)
+# traversal and ssim at end
+de_list = plot_axis_change_grid(1, 10, 2, decoder, 8)
+de_list = plot_axis_change_grid(4, 10, 2, decoder, 8)
+# just ssim of all important dimensions
+lat_ssim_diff_grid(decoder, 0)
+lat_ssim_diff_grid(decoder, 4)
 #from CVAEplots import plot_clusters
 #plot_clusters(encoder, x_test, y_test, plot_labels_test, batch_size)
 

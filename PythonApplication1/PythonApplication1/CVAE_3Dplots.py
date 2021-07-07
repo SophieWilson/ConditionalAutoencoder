@@ -308,10 +308,11 @@ def plot_axis_change_grid(label, sides, max_z, decoder, latent_dim):
     z_ = [0] * latent_dim
     #plt.xlabel('one')
     #plt.ylabel('work')
-    for j in range(6):
+    for j in range(6): # looping through slices
         slice = j * 3
-        for i in range(0, 11):
+        for i in range(0, 11): # looping through lat dim
             z1 = (((i / (sides-1)) * max_z)*2) - max_z
+            print(z1)
             z_.append(z1) # This is where the axis changes (right now its first, try to change that)
             vec = construct_numvec(label, z_)
             decoded = decoder.predict(vec)
@@ -339,6 +340,38 @@ def plot_axis_change_grid(label, sides, max_z, decoder, latent_dim):
 
 #de_list = plot_axis_change_grid(1, 10, 2, decoder, 8)
 
+def lat_ssim_diff_grid(decoder, label):
+    lat_dim = [8, 18, 42, 25, 39, 38, 34, 10, 0, 29, 44]
+    fig = plt.figure(figsize = (8, 6))
+    img_it = 0
+    for j in range(6): # looping through slices
+        slice = j*3
+        for i in range(0, 8): # looping through lat dim
+            z_neg  = [0] * lat_dim[i]
+            z_pos = [0] * lat_dim[i]
+            z_neg.append(-3.0)
+            z_pos.append(3.0)
+            vec_n = construct_numvec(label, z_neg)
+            vec_p = construct_numvec(label, z_pos)
+            decoded_n = decoder.predict(vec_n)
+            decoded_p = decoder.predict(vec_p)
+            decoded_n = decoded_n[:,:,:,:,0]
+            decoded_p = decoded_p[:,:,:,:,0]
+            ax = plt.subplot(6, 8, 1 + img_it)
+            img_it +=1
+            neg = decoded_n[0][slice].reshape(40, 40)
+            pos = decoded_p[0][slice].reshape(40, 40)
+            score, diff = ssim(neg, pos, full = True)
+            plt.imshow(diff.reshape(40, 40), cmap = plt.cm.gray)
+            #ax.set(ylabel = slice, xlabel = lat_dim[i])
+            #ax.get_xaxis().set_ticklabels([])
+            ##ax.get_yaxis().set_ticklabels([])
+            plt.tick_params(labelcolor='none', which='both', top=False, bottom=False, left=False, right=False)
+            z_neg.pop()
+            z_pos.pop()
+
+    plt.show()
+lat_ssim_diff_grid(decoder, 0)
 
 
 def diff_gridplot(data,  n = 6):
@@ -366,11 +399,10 @@ def plot_lda_cluster(X, y, title, label_dict, sklearn_lda):
 
     ax = plt.subplot(111)
     for label,marker,color in zip(
-        range(1,5),('v','^', 's', 'o'),('purple','blue', 'red', 'green')):
+        range(1,5),('v','^', 's', 'o'),('blue','orange', 'green', 'red')):
 
         plt.scatter(x=X[:,0][y == label],
                     y=X[:,1][y == label] * -1, # flip the figure
-                  
                     color=color,
                     alpha=0.5,
                     label = label_dict[label])
