@@ -105,6 +105,7 @@ def lda(encoder, x_train, y_train, train_label):
     importance = pd.DataFrame(sklearn_lda.scalings_)
     print(sklearn_lda.explained_variance_ratio_)
     print(importance.shape)
+    print(sklearn_lda.confusion_matrix) 
     exp_var = sklearn_lda.explained_variance_ratio_.tolist()
     importance.loc[len(importance)] = exp_var
     importance = importance.abs() # removing all negative numbers

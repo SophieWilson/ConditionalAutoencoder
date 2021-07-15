@@ -104,6 +104,7 @@ def latent_ssim_analysis(label, num_recon, max_z, decoder, latent_dim):
             #print(counter)
 
     latent_df = pd.DataFrame(latent_slice_var)
+    latent_df = latent_df.sort_values(by = [1], ascending = True)
     return latent_df, diff_list
 
 #lat_df, diff = latent_ssim_analysis(0, 10, 4, decoder, 50)

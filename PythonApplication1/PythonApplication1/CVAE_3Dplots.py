@@ -103,17 +103,19 @@ prediction = cvae.predict([x_test, y_test])
 reconstruction_plot(x_test, y_test, 'Input data', cvae)
 reconstruction_plot(prediction, y_test, 'Reconstructions', cvae)
 
-def plot_slices_vert(x_test, n = 4, ):
+def plot_slices_vert(x_test, n = 6 ):
     ''' working, x_test is data, n is number displayed '''
     fig = plt.figure(figsize=(5, 13))
     fig.suptitle('Input slices', fontsize=10)
+    slices = [1, 3, 6, 9, 12, 15]
     for i in range(1, n + 1):
         # Display original
         ax = plt.subplot(n, 1, i)
-        plt.imshow(x_test[1][i]) # sample i, input slice
+        plt.imshow(x_test[1][slices[i-1]]) # sample i, input slice
         plt.gray()
-        ax.get_xaxis().set_visible(False)
-        ax.get_yaxis().set_visible(False)
+        ax.set(ylabel = slices[i-1])
+        #ax.get_xaxis().set_visible(False)
+        #ax.get_yaxis().set_visible(False)
     plt.show()
 
 
@@ -340,8 +342,8 @@ def plot_axis_change_grid(label, sides, max_z, decoder, latent_dim):
 
 #de_list = plot_axis_change_grid(1, 10, 2, decoder, 8)
 
-def lat_ssim_diff_grid(decoder, label):
-    lat_dim = [8, 18, 42, 25, 39, 38, 34, 10, 0, 29, 44]
+def lat_ssim_diff_grid(decoder, label, lat_dim):
+    lat_dim = lat_dim
     fig = plt.figure(figsize = (8, 6))
     img_it = 0
     for j in range(6): # looping through slices
@@ -349,8 +351,8 @@ def lat_ssim_diff_grid(decoder, label):
         for i in range(0, 8): # looping through lat dim
             z_neg  = [0] * lat_dim[i]
             z_pos = [0] * lat_dim[i]
-            z_neg.append(-3.0)
-            z_pos.append(3.0)
+            z_neg.append(-2.0)
+            z_pos.append(2.0)
             vec_n = construct_numvec(label, z_neg)
             vec_p = construct_numvec(label, z_pos)
             decoded_n = decoder.predict(vec_n)
@@ -371,7 +373,7 @@ def lat_ssim_diff_grid(decoder, label):
             z_pos.pop()
 
     plt.show()
-lat_ssim_diff_grid(decoder, 0)
+lat_ssim_diff_grid(decoder, 0, list2)
 
 
 def diff_gridplot(data,  n = 6):

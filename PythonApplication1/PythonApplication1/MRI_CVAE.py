@@ -35,7 +35,7 @@ mri_types =['wp0', # whole brain
 
 niis = []
 labels = []
-num_subjs =698 # max 698
+num_subjs =10 # max 698
 
 # Read in MRI image stacks
 for i in range(num_subjs):
