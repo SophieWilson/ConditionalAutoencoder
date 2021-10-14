@@ -95,17 +95,17 @@ def lda(encoder, x_train, y_train, train_label):
     print('accruacy', score)
     label_dict = {1: 'Healthy', 2: 'At risk of SCZ', 3:'Depression', 4:'SCZ'}
 
-    #from CVAE_3Dplots import lda_densityplot
+    from CVAE_3Dplots import lda_densityplot
     lda_densityplot(X_lda, y, 'STUDYGROUP', sklearn_lda)
 
-    #from CVAE_3Dplots import plot_lda_cluster
+    from CVAE_3Dplots import plot_lda_cluster
     plot_lda_cluster(X_lda, y, '', label_dict, sklearn_lda)
 
 
     importance = pd.DataFrame(sklearn_lda.scalings_)
     print(sklearn_lda.explained_variance_ratio_)
     print(importance.shape)
-    print(sklearn_lda.confusion_matrix) 
+    #print(sklearn_lda.confusion_matrix) 
     exp_var = sklearn_lda.explained_variance_ratio_.tolist()
     importance.loc[len(importance)] = exp_var
     importance = importance.abs() # removing all negative numbers

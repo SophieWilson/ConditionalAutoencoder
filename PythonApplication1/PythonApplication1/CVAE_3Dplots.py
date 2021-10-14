@@ -99,9 +99,9 @@ def reconstruction_plot(x_test, y_test, model, n=6):
 
     plt.show()
 
-prediction = cvae.predict([x_test, y_test])
-reconstruction_plot(x_test, y_test, 'Input data', cvae)
-reconstruction_plot(prediction, y_test, 'Reconstructions', cvae)
+#prediction = cvae.predict([x_test, y_test])
+#reconstruction_plot(x_test, y_test, 'Input data', cvae)
+#reconstruction_plot(prediction, y_test, 'Reconstructions', cvae)
 
 def plot_slices_vert(x_test, n = 6 ):
     ''' working, x_test is data, n is number displayed '''
@@ -182,8 +182,8 @@ def lossplot(history):
 #lossplot(history)
 
 # Reconstructing specific digits
-def construct_numvec(label, z = 3, n_z = 50, n_y = 5):
-    ''' make number vector, its called in plot_latent_space, must change n_z and n_y values  here if you want to fix a plot '''
+def construct_numvec(label, z = 3, n_z = 40, n_y = 5):
+    ''' make number vector, its called in plot_latent_space, must change n_z and n_y values here if you want to fix a plot '''
     out = np.zeros((1, n_z + n_y))
     out[:, label + n_z] = 1.
     if z is None:
@@ -373,7 +373,7 @@ def lat_ssim_diff_grid(decoder, label, lat_dim):
             z_pos.pop()
 
     plt.show()
-lat_ssim_diff_grid(decoder, 0, list2)
+#lat_ssim_diff_grid(decoder, 0, list2)
 
 
 def diff_gridplot(data,  n = 6):

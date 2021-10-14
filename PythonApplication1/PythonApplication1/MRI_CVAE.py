@@ -35,7 +35,7 @@ mri_types =['wp0', # whole brain
 
 niis = []
 labels = []
-num_subjs =10 # max 698
+num_subjs =698 # max 698
 
 # Read in MRI image stacks
 for i in range(num_subjs):
@@ -49,7 +49,7 @@ for i in range(num_subjs):
         niis.append((nii[:,j,:]))
         
 depth = len(nii[2])
-
+print(labels)
 # Prepare to crop images
 #def crop_center(img,cropx,cropy):
 #    y,x = img.shape

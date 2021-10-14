@@ -59,6 +59,7 @@ def latent_ssim_analysis(label, num_recon, max_z, decoder, latent_dim):
             for j in range(0, num_recon): # looping through number of images
                 z1 = (((j / (num_recon-1)) * max_z)*2) - max_z
                 z_.append(z1)
+                from CVAE_3Dplots import construct_numvec
                 vec = construct_numvec(label, z_)
                 decoded = decoder.predict(vec) # 1, 16, 96, 96, 1
                 decoded = decoded[0,:,:,:,0] # slice depth, 96, 96

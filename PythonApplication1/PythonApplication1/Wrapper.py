@@ -25,7 +25,7 @@ sliceview(cvae.x_test[1]) # shows mousewheel plot
 
 # # # Model output reconstructions 
 from CVAE_3Dplots import reconstruction_plot, lossplot
-reconstruction_plot_old(cvae.x_test, cvae.y_test, cvae.cvae, slice=2) # plot
+#reconstruction_plot_old(cvae.x_test, cvae.y_test, cvae.cvae, slice=2) # plot
 reconstruction_plot(cvae.x_test, cvae.y_test, cvae.cvae) # superior plot
 #lossplot(cvae.history) # plot [not working but not erroring
 prediction = cvae.cvae.predict([cvae.x_test, cvae.y_test]) # 
@@ -43,14 +43,14 @@ from ccvae_analysis import lda
 lda(cvae.encoder, cvae.x_train, cvae.y_train, cvae.train_label)
 scalings = lda(cvae.encoder, cvae.x_test, cvae.y_test, cvae.test_label)
 scalings_df = pd.DataFrame(scalings)
-df_scalings.to_csv(r'C:\Users\Mischa\Documents\Uni Masters\Diss project\Practise\MRI_cvae\df_scalings.csv')
+#scalings_df.to_csv(r'C:\Users\Mischa\Documents\Uni Masters\Diss project\Practise\MRI_cvae\scalings_df.csv')
 # Plotting reconstruction latent space clusters over 2D
 from CVAE_3Dplots import plot_clusters
 plot_clusters(cvae.encoder, cvae.x_test, cvae.y_test, cvae.test_label, batch_size = 16)
 plot_clusters(cvae.encoder, cvae.x_train, cvae.y_train, cvae.train_label, batch_size = 16)
 
 # Analysing lat space variance
-lats_df, diff = latent_ssim_analysis(0, 10, 4, decoder, 50)
+lats_df, diff = latent_ssim_analysis(0, 10, 4, cvae.decoder, 50)
 
 # Changing latent space and plotting it
 # first getting max and min of latent space
@@ -74,7 +74,7 @@ lda_test = np.take(images, index, 0) # subsetting images
 lda_test_label = [labels[i] for i in index] # subsetting labels
 lda_label_onehot = to_categorical(lda_test_label) # encoding labels (not sure why)
 lda_test = lda(encoder, lda_test, lda_label_onehot, lda_test_label)
-lda_list lda_test[:10].index # get top ten dimensions
+lda_list = lda_test[:10].index # get top ten dimensions
 lda_list = lda_list.tolist()
 # latent space grids (for important latent space dimensions found in above lda)
 # traversal and ssim at end
